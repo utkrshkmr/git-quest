@@ -10,6 +10,8 @@ for key, name in [("CSS", "style.css"), ("ENGINE", "engine.js"), ("LEVELS", "lev
     code = (src / name).read_text().replace("</script>", "<\\/script>")
     html = html.replace("/*" + key + "*/", code, 1)
 
+html = html.replace("<!--XLAB-->", (src / "xlab-logo.svg").read_text().strip(), 1)
+
 out.parent.mkdir(exist_ok=True)
 out.write_text(html)
 print(f"built {out} ({len(html):,} bytes)")

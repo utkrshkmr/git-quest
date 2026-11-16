@@ -218,3 +218,13 @@ button:disabled{opacity:.4;cursor:not-allowed}
 
 .stage.drill{background:repeating-linear-gradient(135deg,#171750 0 10px,#1a1a5c 10px 20px)}
 .stage.drill .n{color:var(--cyan)}
+
+/* ---------- X-Lab intro + credits ---------- */
+.presents{display:flex;align-items:center;gap:14px;margin-top:6px;animation:presents .9s steps(6) both}
+.presents .xlab{width:92px;height:92px;filter:drop-shadow(0 0 10px #00eaff55)}
+.presents span{font-family:var(--px);font-size:10px;line-height:1.7;color:var(--cyan);letter-spacing:2px;text-shadow:2px 2px 0 #000}
+@keyframes presents{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.credits{font-family:var(--px);font-size:11px;letter-spacing:2px;color:var(--dim);margin:6px 0 4px;text-align:center}
+.credits a{color:var(--yel);text-decoration:none;text-shadow:0 0 8px #ffe14d88}
+.credits a:hover{color:#fff}
+.blink-slow{color:var(--mag);animation:blink 1.6s steps(1) infinite}
