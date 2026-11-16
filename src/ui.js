@@ -62,7 +62,7 @@ function startLevel(i) {
   try { history.replaceState(null, '', '#stage-' + cur.id); } catch (e) {}
   hintsUsed = 0; solUsed = false;
   resetWorld();
-  if (cur.lesson.length) openLesson(0); else { closeOv(); introFlash(); }
+  if (lessonPages().length) openLesson(0); else { closeOv(); introFlash(); }
 }
 function resetWorld() {
   E = new Engine(); cur.setup(E); seen = new Set(Object.keys(E.commits)); cleared = false;
@@ -153,9 +153,14 @@ function toast(t) { const d = document.createElement('div'); d.className = 'toas
 // ================= OVERLAYS =================
 function openOv(html) { const o = $('#ov'); o.innerHTML = html; o.classList.remove('hidden'); }
 function closeOv() { $('#ov').classList.add('hidden'); $('#ov').innerHTML = ''; }
+function lessonPages() {
+  const L = cur.lesson.slice();
+  if (cur.learn) L.unshift({ intro: true, h: 'What you’ll learn', p: cur.learn.map(x => '<span class="learn-line">' + esc(x) + '</span>').join('') });
+  return L;
+}
 function openLesson(p) {
-  lessonPage = p; const L = cur.lesson, pg = L[p];
-  openOv(`<div class="modal"><div class="kick">${curIdx >= 0 ? 'STAGE ' + (curIdx + 1) + ' · ' : ''}TRAINING ${p + 1}/${L.length}</div><h2>${esc(pg.h)}</h2><p>${pg.p}</p>${pg.viz ? `<div class="viz">${pg.viz}</div>` : ''}
+  lessonPage = p; const L = lessonPages(), pg = L[p];
+  openOv(`<div class="modal ${pg.intro ? 'intro-page' : ''}"><div class="kick">${curIdx >= 0 ? 'STAGE ' + (curIdx + 1) + ' · ' : ''}${pg.intro ? (cur.drill ? '🔁 PRACTICE ROUND' : '🎓 NEW SKILL') : 'TRAINING'} ${p + 1}/${L.length}</div>${pg.intro ? '<div class="learn-title">' + esc(cur.title) + '</div>' : ''}<h2>${esc(pg.h)}</h2><p>${pg.p}</p>${pg.viz ? `<div class="viz">${pg.viz}</div>` : ''}
   ${pg.cmds ? `<div class="cmdlist">${pg.cmds.map(([c, d]) => `<div class="mv"><span class="chips"><span class="chip">${esc(c)}</span></span><small>${d}</small></div>`).join('')}</div>` : ''}
   ${pg.tip ? `<div class="tip">${pg.tip}</div>` : ''}
   <div class="foot"><div class="dots">${L.map((_, i) => `<i class="${i === p ? 'on' : ''}"></i>`).join('')}</div><div class="btnrow">${p > 0 ? '<button class="ghost" id="lPrev">◀ BACK</button>' : ''}${p < L.length - 1 ? '<button id="lNext">NEXT ▶</button>' : '<button class="lime" id="lGo">START MISSION ▶</button>'}</div></div></div>`);
@@ -515,7 +520,7 @@ function init() {
   $('#term').addEventListener('mouseup', () => { if (!window.getSelection().toString()) $('#cmd').focus(); });
   $('#mapBtn').onclick = () => { SFX.key(); showTitle(); };
   $('#questbar').onclick = () => { if (cur && hintsUsed < cur.hints.length && goalState.some(s => !s)) { hintsUsed++; SFX.key(); renderMission(); const hb = $('#hintBox'); hb && hb.lastElementChild && hb.lastElementChild.scrollIntoView({ block: 'nearest' }); } $('#cmd').focus(); };
-  $('#lessonBtn').onclick = () => { if (cur.lesson.length) openLesson(0); };
+  $('#lessonBtn').onclick = () => { if (lessonPages().length) openLesson(0); };
   $('#movesBtn').onclick = openMoves;
   $('#soundBtn').onclick = () => { save.sound = !save.sound; persist(); renderHUD(); };
   $('#prevBtn').onclick = () => { if (curIdx > 0) startLevel(curIdx - 1); };

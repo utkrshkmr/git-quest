@@ -228,3 +228,10 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .credits a{color:var(--yel);text-decoration:none;text-shadow:0 0 8px #ffe14d88}
 .credits a:hover{color:#fff}
 .blink-slow{color:var(--mag);animation:blink 1.6s steps(1) infinite}
+
+/* ---------- 'what you'll learn' intro page ---------- */
+.intro-page .learn-title{font-family:var(--px);font-size:clamp(16px,3vw,24px);color:var(--lime);text-shadow:2px 2px 0 #0b5;margin:14px 0 4px;line-height:1.4}
+.intro-page h2{color:var(--cyan);font-size:11px;margin-top:14px}
+.intro-page p{display:flex;flex-direction:column;gap:10px;margin:14px 0 6px}
+.learn-line{display:block;font-size:19px;line-height:1.5;color:#f1f3ff;background:#0a0a2e;box-shadow:0 0 0 2px #262668;padding:12px 16px}
+.learn-line::before{content:'▶ ';color:var(--yel);font-size:14px}

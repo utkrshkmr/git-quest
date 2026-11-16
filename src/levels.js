@@ -812,6 +812,191 @@ drill({ id: 'tagteam', ch: 4, title: 'Tag Team', xp: 300,
 // keep each world's stages together (stable sort), practice drills at the end of their world
 LV.sort((a, b) => a.ch - b.ch);
 
+// plain-language 'what this stage teaches' (shown before any commands)
+const LEARN = {
+ "terminal": [
+  "The terminal is a window where you type instructions to your computer instead of clicking.",
+  "First skill: find out which folder you are in, and what is inside it."
+ ],
+ "walk": [
+  "Folders sit inside other folders, like boxes inside boxes.",
+  "You'll learn to walk into a folder, step back out, and jump home from anywhere."
+ ],
+ "read": [
+  "Files hold text, like notes or recipes.",
+  "You'll learn to open a file and read it right in the terminal, without any app."
+ ],
+ "mkdir": [
+  "Every project lives in its own folder.",
+  "You'll learn to create new folders with one short command."
+ ],
+ "files": [
+  "Now you'll make files inside your folder.",
+  "You'll create an empty file, write a sentence into another one, and read it back."
+ ],
+ "maze": [
+  "Practice round: no new commands!",
+  "You'll move through folders inside folders and leave files in the right places. Speed comes from repetition."
+ ],
+ "config": [
+  "Git is a time machine for your files: it remembers every version you save.",
+  "Before using it, you tell Git your name and email, so every save is signed by you."
+ ],
+ "init": [
+  "A normal folder becomes a Git project (a “repository”) with one command.",
+  "After that, Git can start remembering the history of every file inside it."
+ ],
+ "stage": [
+  "Git doesn't save everything automatically. You choose what goes into each save.",
+  "You'll learn to put files into the “staging area”, like packing a box before you seal it."
+ ],
+ "commit": [
+  "A commit is a saved snapshot of your project, with a short message saying what changed.",
+  "You'll make your first commits, the most important habit in Git."
+ ],
+ "log": [
+  "Git keeps a diary of every snapshot: who made it, when, and why.",
+  "You'll learn to read that history and open any old snapshot."
+ ],
+ "history": [
+  "Something went wrong in a file. Who changed it, and when?",
+  "You'll use Git like a detective to find who wrote each line, then fix the mistake and save it."
+ ],
+ "restore": [
+  "Made a mess you haven't saved yet? No problem.",
+  "You'll learn to undo changes to a file, bring back a deleted file, and take a file out of the staging box."
+ ],
+ "gitignore": [
+  "Some files should never be saved in Git, like passwords or huge downloads.",
+  "You'll make a list of files for Git to ignore, so they can never leak by accident."
+ ],
+ "hopper": [
+  "Practice round: three projects, one laptop.",
+  "Each folder is its own repository, so you'll hop between them and save in each one."
+ ],
+ "marathon": [
+  "Practice round: small, frequent saves.",
+  "You'll repeat edit → add → commit five times until it feels automatic."
+ ],
+ "cleanup": [
+  "Practice round: three projects, three messes.",
+  "You'll use the undo commands you already know to clean each one up."
+ ],
+ "branch": [
+  "A branch is a parallel copy of your project where you can try ideas safely.",
+  "The main version stays untouched while you experiment on your branch."
+ ],
+ "ffmerge": [
+  "Your experiment worked! Now bring it back into the main version.",
+  "That's called merging. When main hasn't changed, Git just moves it forward."
+ ],
+ "merge3": [
+  "Sometimes main AND your branch both changed.",
+  "Git combines them with a special “merge commit” that joins the two timelines."
+ ],
+ "conflict": [
+  "Two people changed the SAME line, so Git can't decide which one wins.",
+  "You'll open the file, choose the final version yourself, and finish the merge. This is the boss fight!"
+ ],
+ "rebase": [
+  "Rebase is another way to combine work: it moves your commits on top of the latest main.",
+  "The result is one clean, straight history line, with no merge bubble."
+ ],
+ "stash": [
+  "You're halfway through something and need to switch tasks right now.",
+  "Stash puts your unfinished work in a pocket so you can come back to it later."
+ ],
+ "revert": [
+  "Two ways to fix saved mistakes: amend changes your very last commit.",
+  "Revert safely undoes an older commit by adding a new “opposite” commit."
+ ],
+ "reset": [
+  "Reset moves your project back to an earlier snapshot, as if the newer ones never happened.",
+  "If you go too far, the reflog is Git's safety net that remembers everything."
+ ],
+ "cherry": [
+  "A messy branch has one really good commit.",
+  "Cherry-pick copies just that single commit onto your branch, and leaves the rest behind."
+ ],
+ "juggler": [
+  "Practice round: make a branch, commit, merge, delete it. Three times in a row.",
+  "This is the everyday rhythm of working with branches."
+ ],
+ "twinrepos": [
+  "Practice round: each project has its own branches.",
+  "You'll do the same branch-and-merge routine in two different projects."
+ ],
+ "publish": [
+  "So far everything was only on your laptop.",
+  "GitHub is a website that keeps an online copy of your project. You'll log in, create it there, and upload (push) your work."
+ ],
+ "clone": [
+  "Want someone else's project on your laptop?",
+  "Cloning downloads the whole thing, with every file and every saved version."
+ ],
+ "sync": [
+  "When you work in a team, others upload changes too.",
+  "You'll download their work (fetch and pull) before uploading yours (push), so nobody's work gets lost."
+ ],
+ "ssh": [
+  "An SSH key is like a secret key card for your laptop.",
+  "Once GitHub knows your key, it recognises your laptop without a password."
+ ],
+ "pr": [
+  "On real teams, nobody uploads straight to main.",
+  "You'll propose your change as a Pull Request, which teammates can review and then merge."
+ ],
+ "fork": [
+  "You can't upload to a project you don't own, but you can still help!",
+  "Fork makes your own copy on GitHub. Then you send your change back as a Pull Request. This is how open source works."
+ ],
+ "mirror": [
+  "Sometimes a project needs a new home or a new name.",
+  "You'll copy it completely, with every branch and every version, then delete the old one."
+ ],
+ "docs": [
+  "Good projects explain themselves.",
+  "You'll write the standard files every project needs (README, LICENSE, CONTRIBUTING, CHANGELOG), and use Issues as a to-do list."
+ ],
+ "morning": [
+  "Practice round: your start-of-day routine.",
+  "Check three projects, download what teammates did overnight, and upload what you forgot yesterday."
+ ],
+ "publishall": [
+  "Practice round: put three projects online.",
+  "Two will be public, so everyone can see them. One will be private, just for you."
+ ],
+ "collector": [
+  "Practice round: keep your downloads organised.",
+  "You'll clone three projects into one tidy folder and open a branch in one of them."
+ ],
+ "prrush": [
+  "Practice round: two Pull Requests back to back.",
+  "Branch → commit → push → PR → merge. Do it twice until it's easy."
+ ],
+ "semver": [
+  "Version numbers like 2.4.1 have a meaning: big change . new feature . bug fix.",
+  "You'll learn which number to bump, and how to stick a version label (a tag) on a commit."
+ ],
+ "release": [
+  "A release is how you ship a new version to the world.",
+  "Update the version number and the changelog, tag it, and publish a release page on GitHub."
+ ],
+ "tagteam": [
+  "Practice round: release day for two apps.",
+  "You'll tag versions and push them for two different projects."
+ ],
+ "ci": [
+  "GitHub Actions are robots that run every time you upload.",
+  "You'll add a robot that tests your code automatically, watch it catch a bug, then fix it until it turns green."
+ ],
+ "pages": [
+  "The final boss: turn your project into a real website with its own address.",
+  "A GitHub robot will build and publish it every time you upload. Everything you've learned comes together here!"
+ ]
+};
+LV.forEach(l => { if (LEARN[l.id]) l.learn = LEARN[l.id]; });
+
 const SANDBOX = { id: 'sandbox', ch: -1, title: 'Free Play Sandbox', xp: 0, lesson: [], story: 'No rules. Try anything — break things, fix things. A couple of GitHub repos are waiting for you.',
   setup(e) { base(e, { auth: true }); gh(e, 'octo-academy/hello-world', [['Initial commit', { 'README.md': '# Hello World\n' }], ['Add greeting', { 'hello.sh': 'echo hi\n' }]]); const r = repo(e, '~/playground'); e.cwd = r.root; commit(e, r, 'First commit', { 'README.md': '# Playground\n' }); e.write('/home/you/templates/pages.yml', PAGES_YML); e.write('/home/you/templates/ci.yml', CI_YML); },
   goals: [], hints: ['Try: gh repo create playground --public --source=. --push'], solution: [] };
