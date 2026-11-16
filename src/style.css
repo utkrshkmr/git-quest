@@ -202,3 +202,16 @@ button:disabled{opacity:.4;cursor:not-allowed}
   #dash{padding-bottom:30px}
   #hud .stg{max-width:60vw}
 }
+
+/* ---------- next-objective bar ---------- */
+#questbar{display:flex;align-items:center;gap:10px;margin:2px 12px 0;padding:6px 10px;background:#2a2400;box-shadow:0 0 0 2px var(--yel);font-family:var(--sans);font-size:14px;color:var(--yel);cursor:pointer}
+#questbar:empty{display:none}
+#questbar .lbl{font-family:var(--px);font-size:8px;background:var(--yel);color:#000;padding:4px 6px;white-space:nowrap}
+#questbar .txt{flex:1;color:#fff4b0}
+#questbar .cnt{font-family:var(--px);font-size:8px;color:var(--dim);white-space:nowrap}
+#questbar.done{background:#0b2a17;box-shadow:0 0 0 2px var(--lime);color:var(--lime)}
+#questbar.done .lbl{background:var(--lime)}
+#questbar.bump{animation:qbump .6s}
+@keyframes qbump{30%{transform:scale(1.03);box-shadow:0 0 0 2px var(--yel),0 0 22px #ffe14d99}}
+#mission.intro .card:first-child,#mission.intro .card:nth-child(2){animation:intro 1.2s 2}
+@keyframes intro{50%{box-shadow:0 0 0 3px var(--yel),0 0 26px #ffe14d88,0 4px 0 #000}}

@@ -501,6 +501,13 @@ Engine.prototype = {
     return false;
   },
   saveFile(path, content) { const abs = this.norm(path); this.write(abs, content); },
+  // independent copy of the world (used to look ahead for hints); runs never wait in real time
+  snapshot() {
+    const e = new Engine();
+    for (const k of ['fs', 'repos', 'commits', 'gh', 'cwd', 'prevCwd', 'config', 'auth', 'ssh', 'clock', 'runSeq', 'history', 'lv']) if (this[k] !== undefined) e[k] = JSON.parse(JSON.stringify(this[k]));
+    e.testRules = this.testRules; e.realtime = false; e.events = [];
+    return e;
+  },
 };
 
 // =================== SHELL ===================
@@ -666,6 +673,7 @@ Object.assign(Engine.prototype, {
     this.newRepo(dir, !!f['--bare'], f['-b'] || f['--initial-branch']);
     if (!this.config['init.defaultbranch'] && !f['-b']) this.p("hint: Using 'main' as the name for the initial branch. (Older Git versions used 'master'.)\nhint: Configure it for all repos with:  git config --global init.defaultBranch main", 'dim');
     this.p('Initialized empty Git repository in ' + dir + (f['--bare'] ? '/' : '/.git/'));
+    if (dir === HOME) this.p('⚠ Heads up: you just turned your WHOLE home folder into a repository!\n   Usually you want git init inside a project folder. To undo:  rm -rf .git   then  cd <project>  and run git init there.', 'warn');
     this.ev('init', { root: dir });
   },
   git_status(a) {

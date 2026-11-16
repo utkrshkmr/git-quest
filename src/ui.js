@@ -27,7 +27,7 @@ function beep(seq) {
 const SFX = { key: () => beep([[880, .03]]), ok: () => beep([[660, .07], [990, .1]]), err: () => beep([[200, .12, 'sawtooth']]), goal: () => beep([[523, .08], [659, .08], [784, .12]]), clear: () => beep([[523, .1], [659, .1], [784, .1], [1047, .3]]), push: () => beep([[440, .05], [880, .08]]) };
 
 // ---------- state ----------
-let E = null, cur = null, curIdx = -1, seen = new Set(), goalState = [], hintsUsed = 0, solUsed = false, cleared = false, lessonPage = 0, flashKeys = new Set(), hist = [], hpos = 0;
+let expCwd = [], E = null, cur = null, curIdx = -1, seen = new Set(), goalState = [], hintsUsed = 0, solUsed = false, cleared = false, lessonPage = 0, flashKeys = new Set(), hist = [], hpos = 0;
 
 // ================= TITLE SCREEN =================
 function showTitle() {
@@ -61,15 +61,16 @@ function startLevel(i) {
   try { history.replaceState(null, '', '#stage-' + cur.id); } catch (e) {}
   hintsUsed = 0; solUsed = false;
   resetWorld();
-  if (cur.lesson.length) openLesson(0); else closeOv();
+  if (cur.lesson.length) openLesson(0); else { closeOv(); introFlash(); }
 }
 function resetWorld() {
   E = new Engine(); cur.setup(E); seen = new Set(Object.keys(E.commits)); cleared = false;
+  expCwd = []; try { const t = new Engine(); t.realtime = false; cur.setup(t); for (const c of cur.solution) { expCwd.push(t.cwd); t.run(c); t.settle(true); } } catch (e) {}
   goalState = cur.goals.map(() => false); flashKeys.clear();
   $('#termout').innerHTML = '';
   termSys('━━ ' + (curIdx >= 0 ? 'STAGE ' + (curIdx + 1) + ': ' : '') + cur.title.toUpperCase() + ' ━━');
   termSys(cur.story);
-  termSys('Type help for shell basics. Click any blue command chip to paste it here.');
+  termSys('Objectives are on the left; the yellow 🎯 NEXT bar above the prompt always shows the next one. Type help for shell basics.');
   renderHUD(); renderMission(); renderDash(); updatePrompt(); checkGoals(true);
   setTimeout(() => $('#cmd').focus(), 50);
 }
@@ -116,7 +117,19 @@ function checkGoals(silent) {
 function paintGoals(anim) {
   document.querySelectorAll('#goalList li').forEach(li => { const s = goalState[+li.dataset.g]; li.classList.toggle('ok', !!s); li.classList.toggle('just', anim && s === 'just'); });
   goalState = goalState.map(s => s ? true : false);
+  paintQuestbar(anim);
 }
+function paintQuestbar(anim) {
+  const qb = $('#questbar'); if (!qb || !cur) return;
+  if (!cur.goals.length) { qb.innerHTML = `<span class="lbl">FREE PLAY</span><span class="txt">No objectives — experiment with any command. Type help to start.</span>`; qb.className = ''; return; }
+  const n = goalState.filter(Boolean).length, i = goalState.findIndex(s => !s);
+  qb.className = i < 0 ? 'done' : '';
+  qb.innerHTML = i < 0 ? `<span class="lbl">★ CLEAR</span><span class="txt">All objectives complete!</span><span class="cnt">${n}/${n}</span>`
+    : `<span class="lbl">🎯 NEXT</span><span class="txt">${esc(cur.goals[i].t)}</span><span class="cnt">${n}/${cur.goals.length} · click for a hint</span>`;
+  qb.title = 'Your current objective — the full list is in the MISSION panel';
+  if (anim) { qb.classList.remove('bump'); void qb.offsetWidth; qb.classList.add('bump'); }
+}
+function introFlash() { const m = $('#mission'); m.classList.remove('intro'); void m.offsetWidth; m.classList.add('intro'); setTimeout(() => m.classList.remove('intro'), 2600); }
 function stageClear() {
   const stars = solUsed ? 1 : hintsUsed >= 2 ? 2 : 3;
   const prev = save.stars[cur.id] || 0;
@@ -147,7 +160,7 @@ function openLesson(p) {
   <div class="foot"><div class="dots">${L.map((_, i) => `<i class="${i === p ? 'on' : ''}"></i>`).join('')}</div><div class="btnrow">${p > 0 ? '<button class="ghost" id="lPrev">◀ BACK</button>' : ''}${p < L.length - 1 ? '<button id="lNext">NEXT ▶</button>' : '<button class="lime" id="lGo">START MISSION ▶</button>'}</div></div></div>`);
   if ($('#lPrev')) $('#lPrev').onclick = () => { SFX.key(); openLesson(p - 1); };
   if ($('#lNext')) $('#lNext').onclick = () => { SFX.key(); openLesson(p + 1); };
-  if ($('#lGo')) { $('#lGo').onclick = () => { SFX.ok(); closeOv(); $('#cmd').focus(); }; setTimeout(() => $('#lGo') && $('#lGo').focus(), 30); }
+  if ($('#lGo')) { $('#lGo').onclick = () => { SFX.ok(); closeOv(); introFlash(); paintQuestbar(true); $('#cmd').focus(); }; setTimeout(() => $('#lGo') && $('#lGo').focus(), 30); }
   else setTimeout(() => $('#lNext') && $('#lNext').focus(), 30);
 }
 function openEditor(path, content) {
@@ -183,6 +196,7 @@ function termLine(lines) {
     const d = document.createElement('div'); d.className = 'l' + (l.c ? ' c-' + l.c : '');
     if (l.parts) l.parts.forEach(p => { const s = document.createElement('span'); if (p.c) s.className = 'c-' + p.c; s.textContent = p.t; d.appendChild(s); });
     else d.textContent = l.t;
+    if (l.paste) { d.style.cursor = 'pointer'; d.title = 'Click to paste'; d.onclick = () => { $('#cmd').value = l.paste; $('#cmd').focus(); }; }
     frag.appendChild(d);
   }
   out.appendChild(frag);
@@ -213,12 +227,53 @@ function runCmd(line) {
   if (clear) $('#termout').innerHTML = '';
   else termLine(res.lines);
   res.ok === false ? SFX.err() : SFX.key();
+  if (res.ok === false && !clear) smartHint(line);
   const evs = E.events.slice(evBefore);
   for (const ev of evs) {
     if (['push', 'gh-create', 'fork', 'pr-merged', 'release', 'sync'].includes(ev.type) && ev.key) flashKeys.add(ev.key);
     if (ev.type === 'push') SFX.push();
   }
   after(evs);
+}
+// ---------- smart hint: where am I + what to type next ----------
+function whereAmI() {
+  const r = E.findRepo(); let w = 'You are in ' + E.pretty(E.cwd);
+  if (!r) w += ' — not inside a git repository';
+  else if (r.bare) w += ' — inside the bare repository ' + E.pretty(r.root);
+  else w += ' — inside the git repo ' + E.pretty(r.root) + (r.head.branch !== undefined ? ', on branch ' + r.head.branch : ', detached HEAD') + (r.merging ? ' (merge in progress)' : '');
+  return w;
+}
+function goalsDone(e) { return cur.goals.filter(g => { try { return !!g.ok(e); } catch (x) { return false; } }).length; }
+function lookahead(fromCwd, k) {
+  const t = E.snapshot(); if (fromCwd) t.cwd = fromCwd;
+  for (const c of cur.solution.slice(k)) { t.run(c); t.settle(true); }
+  return goalsDone(t);
+}
+function suggestNext(failed) {
+  const sol = cur.solution, need = cur.goals.length;
+  if (!sol.length || !need) return null;
+  const pick = (k, cdTo) => ({ cmd: sol[k], cd: cdTo });
+  // 1) latest step from which the rest of the solution still finishes the stage, from where you are
+  for (let k = sol.length - 1; k >= 0; k--) { if (sol[k] === failed) continue; if (lookahead(null, k) === need) return pick(k); }
+  // 2) same, but after moving to the folder that step expects
+  for (let k = sol.length - 1; k >= 0; k--) { const d = expCwd[k]; if (!d || d === E.cwd || !E.isDir(d)) continue; if (lookahead(d, k) === need) return pick(k, d); }
+  // 3) best effort: the step that gets the most goals done
+  let best = -1, bk = 0; for (let k = 0; k < sol.length; k++) { const n = lookahead(null, k); if (n > best) { best = n; bk = k; } }
+  return pick(bk);
+}
+function smartHint(failed) {
+  const lines = [{ t: '💡 ' + whereAmI(), c: 'warn' }];
+  const i = goalState.findIndex(s => !s);
+  if (cur.goals.length && i >= 0) {
+    lines.push({ t: '💡 Next objective: ' + cur.goals[i].t, c: 'warn' });
+    let s = null; try { s = suggestNext(failed.trim()); } catch (e) {}
+    if (s && s.cd) {
+      const rel = E.pretty(s.cd);
+      lines.push({ t: '💡 That step happens in ' + rel + '. First type:  cd ' + rel + '   (click to paste)', c: 'cy', paste: 'cd ' + rel });
+      lines.push({ t: '   then:  ' + s.cmd + '   (click to paste)', c: 'cy', paste: s.cmd });
+    } else if (s) lines.push({ t: '💡 Try typing:  ' + s.cmd + '   (click to paste)', c: 'cy', paste: s.cmd });
+  } else if (!cur.goals.length) lines.push({ t: '💡 Stuck? Type help for shell basics, git help or gh help for the rest.', c: 'warn' });
+  termLine(lines);
 }
 function handleOpen(url) {
   const g = Object.values(E.gh).find(x => x.pages.enabled && url.replace(/\/?$/, '/').startsWith(x.pages.url));
@@ -386,10 +441,11 @@ const cardId = k => 'c_' + k.replace(/[^\w]/g, '_');
 function fileTree() {
   const here = E.cwd;
   const repoRoots = new Set(Object.keys(E.repos));
+  let top = HOME; while (!(here === top || here.startsWith(top + '/')) && top !== '/') top = E.parent(top);
   const walk = (dir, depth) => {
     let kids = E.children(dir).filter(k => k !== '.git');
     const isHere = dir === here;
-    let h = `<div class="fd ${isHere ? 'here' : ''}"><span>${repoRoots.has(dir) ? '🕰 ' : '📁 '}${esc(dir === HOME ? '~' : E.base(dir))}/</span>`;
+    let h = `<div class="fd ${isHere ? 'here' : ''}"><span>${repoRoots.has(dir) ? '🕰 ' : '📁 '}${esc(dir === HOME ? '~' : dir === '/' ? '' : dir === top ? dir : E.base(dir))}/</span>`;
     if (repoRoots.has(dir) && !isHere && !here.startsWith(dir + '/')) return h + `<div class="in"><span class="ff dot">git repo · see card</span></div></div>`;
     if (depth > 3) return h + '<div class="in"><span class="ff dot">…</span></div></div>';
     const dirs = kids.filter(k => E.isDir(dir + '/' + k)), files = kids.filter(k => !E.isDir(dir + '/' + k));
@@ -399,7 +455,7 @@ function fileTree() {
     if (kids.length > 20) h += `<span class="ff dot">+${kids.length - 20}</span>`;
     return h + '</div></div>';
   };
-  return `<div class="ftree">${walk(HOME, 0)}</div>`;
+  return `<div class="ftree">${walk(top, 0)}</div>`;
 }
 function renderDash(evs) {
   const locals = Object.values(E.repos).sort((a, b) => a.root.localeCompare(b.root));
@@ -457,6 +513,7 @@ function init() {
   $('#cmd').addEventListener('keydown', onKey);
   $('#term').addEventListener('mouseup', () => { if (!window.getSelection().toString()) $('#cmd').focus(); });
   $('#mapBtn').onclick = () => { SFX.key(); showTitle(); };
+  $('#questbar').onclick = () => { if (cur && hintsUsed < cur.hints.length && goalState.some(s => !s)) { hintsUsed++; SFX.key(); renderMission(); const hb = $('#hintBox'); hb && hb.lastElementChild && hb.lastElementChild.scrollIntoView({ block: 'nearest' }); } $('#cmd').focus(); };
   $('#lessonBtn').onclick = () => { if (cur.lesson.length) openLesson(0); };
   $('#movesBtn').onclick = openMoves;
   $('#soundBtn').onclick = () => { save.sound = !save.sound; persist(); renderHUD(); };
