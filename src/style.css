@@ -215,3 +215,6 @@ button:disabled{opacity:.4;cursor:not-allowed}
 @keyframes qbump{30%{transform:scale(1.03);box-shadow:0 0 0 2px var(--yel),0 0 22px #ffe14d99}}
 #mission.intro .card:first-child,#mission.intro .card:nth-child(2){animation:intro 1.2s 2}
 @keyframes intro{50%{box-shadow:0 0 0 3px var(--yel),0 0 26px #ffe14d88,0 4px 0 #000}}
+
+.stage.drill{background:repeating-linear-gradient(135deg,#171750 0 10px,#1a1a5c 10px 20px)}
+.stage.drill .n{color:var(--cyan)}

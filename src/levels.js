@@ -98,23 +98,76 @@ const LV = [];
 const add = l => LV.push(l);
 
 // ---------------- CH 0 ----------------
-add({ id: 'terminal', ch: 0, title: 'Hello, Terminal', xp: 100,
-  lesson: [
-    { h: 'The terminal is a chat with your computer', p: 'You type a command, press Enter, and the computer replies. Everything a pro does with Git starts here. Your files live in <b>folders</b> (also called directories) nested inside each other.',
-      viz: row(blk('~ (home)', 'gray'), arr(), blk('Documents/', 'purple'), arr(), blk('welcome.txt', 'blue')),
-      cmds: [['pwd', 'Print Working Directory — “where am I?”'], ['ls', 'LiSt what is in this folder'], ['cd <folder>', 'Change Directory — walk into a folder'], ['cd ..', 'go back up one folder']] },
-    { h: 'Make things', p: 'You can create folders and files, and peek inside files — no mouse needed.',
-      viz: row(blk('mkdir my-project', 'purple'), arr('creates'), blk('my-project/', 'gray')) + row(blk('echo "hi" > notes.txt', 'purple'), arr('writes'), blk('notes.txt', 'blue')),
-      cmds: [['mkdir <name>', 'MaKe a new DIRectory'], ['echo "text" > file', 'write text into a file (> replaces, >> appends)'], ['cat <file>', 'show what is inside a file'], ['nano <file>', 'open a simple editor (in this game: a pop-up editor)'], ['clear', 'wipe the screen']], tip: 'Press ↑ to repeat earlier commands and Tab to auto-complete names.' } ],
-  story: 'Welcome, recruit! Find the welcome note, then build your first project folder.',
-  setup(e) { base(e); e.write('/home/you/Documents/welcome.txt', 'Welcome to Git Quest!\nEvery legend starts with a single command.\n'); },
+const HOME_ = '/home/you';
+const visited = (e, d) => (e.visited || []).includes(d);
+const didRead = (e, f) => (e.readFiles || []).includes(f);
+function homeWorld(e) { base(e); e.write(HOME_ + '/Documents/welcome.txt', 'Welcome to Git Quest!\nEvery legend starts with a single command.\n'); e.write(HOME_ + '/Documents/school/timetable.txt', 'Mon: Math\nTue: Science\nWed: Art\n'); e.write(HOME_ + '/Music/playlist.txt', '1. Chiptune Dreams\n2. 8-bit Sunrise\n'); e.write(HOME_ + '/Pictures/cat.txt', '(=^･ω･^=)\n'); }
+
+add({ id: 'terminal', ch: 0, title: 'Where Am I?', xp: 50,
+  lesson: [{ h: 'The terminal is a chat with your computer', p: 'You type a command, press <b>Enter</b>, and the computer answers. Your files live in <b>folders</b>, nested inside each other. Two questions first: <b>where am I?</b> and <b>what is here?</b>',
+    viz: row(blk('~ (home)', 'gray'), arr('contains'), blk('Documents/', 'purple'), blk('Music/', 'purple'), blk('Pictures/', 'purple')),
+    cmds: [['pwd', 'Print Working Directory — “where am I?”'], ['ls', 'LiSt what is in this folder'], ['ls Documents', 'peek inside a folder without going in']], tip: 'Press ↑ to bring back earlier commands.' }],
+  story: 'You just woke up in a strange computer. Look around before you move!',
+  setup(e) { homeWorld(e); },
   goals: [
-    { t: 'Read Documents/welcome.txt with cat', ok: e => ran(e, /^cat\b.*welcome/) },
+    { t: 'Ask where you are: type pwd', ok: e => ran(e, /^pwd\b/) },
+    { t: 'List what is here: type ls', ok: e => ran(e, /^ls(\s+-\w+)*\s*$/) },
+    { t: 'Peek inside Documents: type ls Documents', ok: e => ran(e, /^ls(\s+-\w+)*\s+(\.\/)?Documents\/?\s*$/) } ],
+  hints: ['Type pwd and press Enter', 'Type ls and press Enter', 'Type ls Documents'],
+  solution: ['pwd', 'ls', 'ls Documents'] });
+
+add({ id: 'walk', ch: 0, title: 'Walking Around', xp: 50,
+  lesson: [{ h: 'cd moves you between folders', p: '<b>cd</b> (change directory) walks into a folder. <b>cd ..</b> steps back out to the folder above. <b>cd ~</b> takes you home from anywhere. Watch the 📍 marker move on the dashboard!',
+    viz: row(blk('~', 'gray'), arr('cd Documents'), blk('Documents/', 'purple')) + row(blk('Documents/', 'purple'), arr('cd ..'), blk('~', 'gray')),
+    cmds: [['cd <folder>', 'walk into a folder'], ['cd ..', 'step back up one folder'], ['cd ~', 'go home from anywhere'], ['pwd', 'check where you ended up']] }],
+  story: 'Explore the house: visit Documents, come back, visit Music, then head home.',
+  setup(e) { homeWorld(e); },
+  goals: [
+    { t: 'Walk into Documents', ok: e => visited(e, HOME_ + '/Documents') },
+    { t: 'Step back out with cd ..', ok: e => { const v = e.visited || []; const i = v.indexOf(HOME_ + '/Documents'); return i >= 0 && v.slice(i + 1).includes(HOME_); } },
+    { t: 'Walk into Music', ok: e => visited(e, HOME_ + '/Music') },
+    { t: 'Finish back home (cd ~)', ok: e => e.cwd === HOME_ && visited(e, HOME_ + '/Music') } ],
+  hints: ['cd Documents', 'cd ..', 'cd Music, then cd ~'],
+  solution: ['cd Documents', 'ls', 'cd ..', 'cd Music', 'ls', 'cd ~'] });
+
+add({ id: 'read', ch: 0, title: 'Reading Files', xp: 50,
+  lesson: [{ h: 'cat shows what is inside a file', p: '<b>cat</b> prints a file into the terminal. You can stand next to the file, or point at it with a path like <b>Documents/welcome.txt</b>.',
+    viz: row(blk('cat welcome.txt', 'purple'), arr('shows'), blk('Welcome to Git Quest!', 'blue')),
+    cmds: [['cat <file>', 'show a file'], ['cat Documents/welcome.txt', 'show a file inside a folder without moving'], ['ls', 'find file names first']] }],
+  story: 'Three notes are hidden around the house. Read them all.',
+  setup(e) { homeWorld(e); },
+  goals: [
+    { t: 'Read Documents/welcome.txt', ok: e => didRead(e, HOME_ + '/Documents/welcome.txt') },
+    { t: 'Read Music/playlist.txt', ok: e => didRead(e, HOME_ + '/Music/playlist.txt') },
+    { t: 'Read the timetable in Documents/school', ok: e => didRead(e, HOME_ + '/Documents/school/timetable.txt') } ],
+  hints: ['cat Documents/welcome.txt', 'cd Music then cat playlist.txt (or cat Music/playlist.txt)', 'cat Documents/school/timetable.txt'],
+  solution: ['cat Documents/welcome.txt', 'cd Music', 'cat playlist.txt', 'cd ~', 'cat Documents/school/timetable.txt'] });
+
+add({ id: 'mkdir', ch: 0, title: 'Make Folders', xp: 50,
+  lesson: [{ h: 'mkdir builds a new folder', p: '<b>mkdir</b> (make directory) creates an empty folder right where you are standing. Then you can <b>cd</b> into it.',
+    viz: row(blk('~', 'gray'), arr('mkdir my-project'), blk('~', 'gray'), blk('my-project/', 'purple')),
+    cmds: [['mkdir <name>', 'make a new folder here'], ['ls', 'see it appear'], ['cd <name>', 'walk into it']], tip: 'Use dashes instead of spaces in names: my-project, not my project.' }],
+  story: 'Time to build your own space: a folder for your project and one for your games.',
+  setup(e) { homeWorld(e); },
+  goals: [
     { t: 'Create a folder called my-project', ok: e => projDirs(e).length > 0 },
-    { t: 'Move into my-project (cd)', ok: e => projDirs(e).includes(e.cwd) },
-    { t: 'Create notes.txt inside it with some text', ok: e => projDirs(e).some(d => (e.read(d + '/notes.txt') || '').trim().length > 0) } ],
-  hints: ['Type ls to see what is in your home folder.', 'cat Documents/welcome.txt', 'mkdir my-project then cd my-project', 'echo "my first note" > notes.txt'],
-  solution: ['ls', 'cat Documents/welcome.txt', 'mkdir my-project', 'cd my-project', 'echo "my first note" > notes.txt', 'ls'] });
+    { t: 'Create a folder called games', ok: e => Object.keys(e.fs).some(p => e.fs[p].d && p.endsWith('/games')) },
+    { t: 'Walk into my-project', ok: e => projDirs(e).includes(e.cwd) } ],
+  hints: ['mkdir my-project', 'mkdir games', 'cd my-project'],
+  solution: ['mkdir my-project', 'mkdir games', 'ls', 'cd my-project'] });
+
+add({ id: 'files', ch: 0, title: 'Make Files', xp: 75,
+  lesson: [{ h: 'Two ways to make a file', p: '<b>touch</b> creates an empty file. <b>echo "text" &gt; file</b> writes text into a file (creating it if needed). Then <b>cat</b> it to check.',
+    viz: row(blk('touch ideas.txt', 'purple'), arr('creates'), blk('ideas.txt (empty)', 'gray')) + row(blk('echo "hi" > notes.txt', 'purple'), arr('writes'), blk('notes.txt: hi', 'blue')),
+    cmds: [['touch <file>', 'create an empty file'], ['echo "text" > <file>', 'write text into a file (replaces what was there)'], ['echo "more" >> <file>', 'add a line to the end'], ['cat <file>', 'check what is inside']] }],
+  story: 'You are inside my-project. Fill it with your first files.',
+  setup(e) { homeWorld(e); e.mkdirp(HOME_ + '/my-project'); e.cwd = HOME_ + '/my-project'; },
+  goals: [
+    { t: 'Create an empty file with touch', ok: e => ran(e, /^touch\s+\S/) && e.children(HOME_ + '/my-project').length > 0 },
+    { t: 'Write some text into notes.txt with echo', ok: e => (e.read(HOME_ + '/my-project/notes.txt') || '').trim().length > 0 },
+    { t: 'Read notes.txt back with cat', ok: e => didRead(e, HOME_ + '/my-project/notes.txt') } ],
+  hints: ['touch ideas.txt', 'echo "my first note" > notes.txt', 'cat notes.txt'],
+  solution: ['touch ideas.txt', 'ls', 'echo "my first note" > notes.txt', 'cat notes.txt'] });
 
 function projDirs(e) { return Object.keys(e.fs).filter(p => e.fs[p].d && p.endsWith('/my-project')); }
 
@@ -179,6 +232,22 @@ add({ id: 'commit', ch: 1, title: 'Snapshot Time', xp: 150,
   hints: ['git commit -m "Add pancake and waffle recipes"', 'echo "# Cookies" > cookies.md', 'git add cookies.md then git commit -m "Add cookies"'],
   solution: ['git commit -m "Add pancake and waffle recipes"', 'echo "# Cookies" > cookies.md', 'git add cookies.md', 'git commit -m "Add cookie recipe"', 'git status'] });
 
+add({ id: 'log', ch: 1, title: 'Time Travel Log', xp: 100,
+  lesson: [{ h: 'Every commit is remembered', p: 'A repo remembers every snapshot: who made it, when, and the message. <b>git log</b> lists them newest first. <b>git show</b> opens one snapshot to see exactly what changed.',
+    viz: row(cm('Ada', 'blue'), arr(), cm('Linus', 'blue'), arr(), cm('Grace', 'blue'), flag('HEAD → main', 'green')),
+    cmds: [['git log', 'full history (newest first)'], ['git log --oneline', 'one short line per commit'], ['git show', 'what changed in the latest commit'], ['git show <id>', 'what changed in any commit (copy an ID from the log)']] }],
+  story: 'Your team has been cooking. Read the recipe repo’s history like a time traveller.',
+  setup(e) { base(e); const r = repo(e, '~/recipes'); e.cwd = r.root;
+    commit(e, r, 'Add pancake recipe', { 'pancakes.md': '# Pancakes\n- 2 eggs\n- 1 cup flour\n' }, null, A.ada);
+    commit(e, r, 'Add milk to pancakes', { 'pancakes.md': '# Pancakes\n- 2 eggs\n- 1 cup flour\n- 1 cup milk\n' }, null, A.linus);
+    commit(e, r, 'Add waffles', { 'waffles.md': '# Waffles\n- 2 eggs\n' }, null, A.grace); },
+  goals: [
+    { t: 'See the full history: git log', ok: e => ran(e, /^git log\s*$/) },
+    { t: 'See the short version: git log --oneline', ok: e => ran(e, /^git log.*--oneline/) },
+    { t: 'Open a commit with git show', ok: e => ran(e, /^git show\b/) } ],
+  hints: ['git log', 'git log --oneline', 'git show (or git show <id> with an ID from the log)'],
+  solution: ['git log', 'git log --oneline', 'git show'] });
+
 add({ id: 'history', ch: 1, title: 'History Detective', xp: 200,
   lesson: [
     { h: 'Read the past', p: 'Every commit remembers who, when and what. You can scroll the timeline, open any snapshot, and even find out who wrote each line of a file.',
@@ -191,7 +260,6 @@ add({ id: 'history', ch: 1, title: 'History Detective', xp: 200,
     commit(e, r, 'Improve pancake flavour', { 'pancakes.md': '# Pancakes\n- 2 eggs\n- 1 cup flour\n- 1 cup milk\n- 1 cup of salt\n' }, null, A.max);
     commit(e, r, 'Add waffles', { 'waffles.md': '# Waffles\n- 2 eggs\n' }, null, A.grace); },
   goals: [
-    { t: 'Browse the history (git log)', ok: e => ran(e, /^git log/) },
     { t: 'Find the culprit with git blame (or git show)', ok: e => ran(e, /^git (blame|show)/) },
     { t: 'Change “1 cup of salt” to “1 pinch of salt”', ok: e => /1 pinch of salt/.test(e.read('/home/you/recipes/pancakes.md') || '') },
     { t: 'Preview your fix with git diff', ok: e => ran(e, /^git diff/) },
@@ -266,7 +334,7 @@ add({ id: 'merge3', ch: 2, title: 'When Timelines Diverge', xp: 250,
   story: 'While you built the score board, a teammate fixed a bug on main. Combine both timelines.',
   setup(e) { base(e); const r = repo(e, '~/game'); e.cwd = r.root; commit(e, r, 'Create game', { 'game.txt': 'PLAYER: @\n' }); r.branches['feature/score'] = e.headId(r); commit(e, r, 'Fix jump bug', { 'game.txt': 'PLAYER: @ (jumps!)\n' }); sw(e, r, 'feature/score'); commit(e, r, 'Add score board', { 'score.txt': 'SCORE: 0\n' }); sw(e, r, 'main'); },
   goals: [
-    { t: 'Be on main', ok: e => R(e, '~/game').head.branch === 'main' },
+    { t: 'Check which branch you are on (git branch or git status)', ok: e => ran(e, /^git (branch|status)\s*$/) },
     { t: 'Merge feature/score → a merge commit with 2 parents', ok: e => { const r = R(e, '~/game'); const c = e.commits[r.branches.main]; return c.parents.length === 2; } },
     { t: 'main now has BOTH score.txt and the jump fix', ok: e => { const t = brT(e, R(e, '~/game'), 'main'); return 'score.txt' in t && /jumps/.test(t['game.txt']); } },
     { t: 'Draw the graph: git log --oneline --graph', ok: e => ran(e, /^git log.*--graph/) } ],
@@ -569,6 +637,180 @@ add({ id: 'pages', ch: 5, title: 'FINAL BOSS: Launch on GitHub Pages', xp: 1000,
     { t: 'Open your live site', ok: e => { const g = G(e, 'you/my-site'); return g && !!g.pages.site && ran(e, /^(open|xdg-open)\s+https:\/\/you\.github\.io\/my-site/) || !!(e.lv && e.lv.opened); } } ],
   hints: ['gh repo create my-site --public --source=. --push', 'mkdir -p .github/workflows && cp ~/templates/pages.yml .github/workflows/', 'gh api -X POST repos/you/my-site/pages -f build_type=workflow', 'git add . && git commit -m "Add Pages workflow" && git push, then gh run watch', 'open https://you.github.io/my-site/'],
   solution: ['gh repo create my-site --public --source=. --push', 'mkdir -p .github/workflows', 'cp ~/templates/pages.yml .github/workflows/', 'git add .', 'git commit -m "Deploy with GitHub Pages"', 'gh api -X POST repos/you/my-site/pages -f build_type=workflow', 'git push', 'gh run watch', 'open https://you.github.io/my-site/'] });
+
+
+// ======================= PRACTICE DRILLS (same commands, more moving around) =======================
+const H = '/home/you';
+const drill = l => { l.drill = true; add(l); };
+function addsOnly(e, id, file) { const c = e.commits[id]; if (!c || c.parents.length !== 1) return false; const p = e.tree(c.parents[0]), t = c.tree; const added = Object.keys(t).filter(k => !(k in p)); return added.length === 1 && added[0] === file && Object.keys(p).every(k => t[k] === p[k]); }
+function branchNames(e) { const s = new Set(); e.history.forEach(h => { const m = h.match(/git (?:switch -c|checkout -b|branch) ([A-Za-z0-9][\w\/.-]*)/); if (m) s.add(m[1]); }); return s; }
+const countRan = (e, re) => e.history.filter(h => re.test(h)).length;
+const anyCommitHas = (e, r, file) => r && Object.values(r.branches).some(id => [...e.ancestors(id)].some(x => file in e.commits[x].tree));
+
+// ---- World 1 ----
+drill({ id: 'maze', ch: 0, title: 'Folder Maze', xp: 150,
+  lesson: [{ h: 'Practice: moving around fast', p: 'Real projects are folders inside folders. You can jump several levels in one <b>cd</b>, climb back with <b>..</b>, and get home from anywhere with <b>~</b>.',
+    viz: row(blk('~', 'gray'), arr(), blk('school/', 'purple'), arr(), blk('science/', 'purple'), arr(), blk('lab/', 'purple'), arr(), blk('secret/', 'purple'), arr(), blk('treasure.txt', 'yellow')) + row(blk('cd ../../..', 'blue'), arr('climbs 3 levels'), blk('school/', 'purple')),
+    cmds: [['cd school/science/lab', 'go down several folders at once'], ['cd ../..', 'go up two folders'], ['cd ~', 'teleport home from anywhere'], ['ls <folder>', 'peek inside a folder without entering it'], ['tree', 'see every folder at once'], ['pwd', 'lost? ask where you are']] }],
+  story: 'The school folder is a maze. Find the hidden treasure, then leave homework and notes in the right rooms — and make it back home.',
+  setup(e) { base(e); e.write(H + '/school/README.txt', 'The treasure is hidden in science → lab → secret.\n'); e.write(H + '/school/science/lab/secret/treasure.txt', '🏆 You found it! The secret word is: COMMIT\n'); e.mkdirp(H + '/school/math'); e.write(H + '/school/art/drawing.txt', '(a very nice cat)\n'); e.write(H + '/school/science/lab/beaker.txt', 'H2O\n'); },
+  goals: [
+    { t: 'Read treasure.txt hidden deep in school/science', ok: e => ran(e, /^cat\b.*treasure/) },
+    { t: 'Create a history folder inside school', ok: e => e.isDir(H + '/school/history') },
+    { t: 'Write notes.txt inside school/history', ok: e => (e.read(H + '/school/history/notes.txt') || '').trim().length > 0 },
+    { t: 'Write homework.txt inside school/math', ok: e => (e.read(H + '/school/math/homework.txt') || '').trim().length > 0 },
+    { t: 'Finish back in your home folder (~)', ok: e => e.cwd === H && !!e.read(H + '/school/math/homework.txt') && !!e.read(H + '/school/history/notes.txt') } ],
+  hints: ['tree shows the whole maze', 'cd school/science/lab/secret then cat treasure.txt', 'cd ../../.. climbs back to school', 'cd ~ goes home'],
+  solution: ['tree', 'cd school/science/lab/secret', 'cat treasure.txt', 'cd ../../..', 'mkdir history', 'echo "Notes about ancient Rome" > history/notes.txt', 'cd math', 'echo "2 + 2 = 4" > homework.txt', 'cd ~'] });
+
+// ---- World 2 ----
+drill({ id: 'hopper', ch: 1, title: 'Project Hopper', xp: 200,
+  lesson: [{ h: 'Practice: one laptop, many repos', p: 'Each project folder is its own repository with its own history. Git only sees the repo you are standing in, so always check <b>where you are</b> before you add and commit.',
+    viz: row(zone('~/blog', 'z1', blk('post1.md', 'red')), zone('~/game', 'z1', blk('game.txt', 'orange')), zone('~/notes', 'z1', blk('todo.txt', 'gray'))) + row(blk('cd ../game', 'blue'), arr('hop'), blk('git status', 'purple'), arr(), blk('add + commit', 'green')),
+    cmds: [['cd ../<project>', 'hop sideways into a neighbour folder'], ['git status', 'which repo? which branch? what changed?'], ['git add <file>', 'stage just what you want'], ['git commit -am "msg"', 'commit all changes to tracked files'], ['git init', 'start a repo in a folder that isn’t one yet']] }],
+  story: 'Three projects need saving: commit the first blog post (not the draft!), the game update, and start tracking your notes.',
+  setup(e) { base(e); const b = repo(e, '~/blog'); commit(e, b, 'Create blog', { 'index.md': '# My Blog\n' }); e.write(b.root + '/post1.md', '# Hello, world!\n'); e.write(b.root + '/post2-draft.md', 'unfinished thoughts…\n');
+    const g = repo(e, '~/game'); commit(e, g, 'Create game', { 'game.txt': 'PLAYER: @\n' }); e.write(g.root + '/game.txt', 'PLAYER: @\nLEVEL: 2\n');
+    e.write(H + '/notes/todo.txt', '- learn git\n- practice git\n'); },
+  goals: [
+    { t: '~/blog: commit post1.md — but NOT the draft', ok: e => { const t = headT(e, R(e, '~/blog')); return 'post1.md' in t && !('post2-draft.md' in t); } },
+    { t: '~/game: commit the change to game.txt', ok: e => /LEVEL: 2/.test(headT(e, R(e, '~/game'))['game.txt'] || '') },
+    { t: '~/notes: make it a repo and commit todo.txt', ok: e => 'todo.txt' in headT(e, R(e, '~/notes')) },
+    { t: 'End back home in ~', ok: e => e.cwd === H && 'todo.txt' in headT(e, R(e, '~/notes')) && /LEVEL: 2/.test(headT(e, R(e, '~/game'))['game.txt'] || '') && 'post1.md' in headT(e, R(e, '~/blog')) } ],
+  hints: ['cd blog → git add post1.md → git commit -m "First post"', 'cd ../game → git commit -am "Level 2"', 'cd ../notes → git init → git add todo.txt → git commit -m "Add todo"', 'cd ~'],
+  solution: ['cd blog', 'git status', 'git add post1.md', 'git commit -m "Add first post"', 'cd ../game', 'git status', 'git commit -am "Add level 2"', 'cd ../notes', 'git init', 'git add todo.txt', 'git commit -m "Add todo list"', 'cd ~'] });
+
+drill({ id: 'marathon', ch: 1, title: 'Commit Marathon', xp: 200,
+  lesson: [{ h: 'Practice: the commit rhythm', p: 'Pros make many small commits — one idea each. The rhythm is always the same: <b>edit → add → commit</b>. Do it five times and it becomes muscle memory.',
+    viz: row(blk('edit', 'orange'), arr(), blk('git add', 'green'), arr(), blk('git commit', 'blue')) + row(cm('Mon', 'blue'), arr(), cm('Tue', 'blue'), arr(), cm('Wed', 'blue'), arr(), cm('Thu', 'blue'), arr(), cm('Fri', 'blue')),
+    cmds: [['echo "text" > file', 'edit (create) a file'], ['git add <file>', 'stage it'], ['git commit -m "msg"', 'save the snapshot'], ['git log --oneline', 'admire your streak']] }],
+  story: 'Keep a coding diary for a week: one file per weekday, each saved in its OWN commit.',
+  setup(e) { base(e); const r = repo(e, '~/diary'); e.cwd = r.root; commit(e, r, 'Start diary', { 'README.md': '# My dev diary\n' }); },
+  goals: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map(d => ({ t: 'Commit ' + d + '.txt in its own commit', ok: e => { const r = R(e, '~/diary'); return !!r && [...e.ancestors(e.headId(r))].some(id => addsOnly(e, id, d + '.txt')); } }))
+    .concat([{ t: 'Working tree clean at the end', ok: e => { const r = R(e, '~/diary'); return clean(e, r) && e.ancestors(e.headId(r)).size >= 6; } }]),
+  hints: ['echo "Learned git add" > monday.txt', 'git add monday.txt then git commit -m "Monday entry"', 'Repeat for tuesday … friday — one commit each!'],
+  solution: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].flatMap(d => ['echo "Dear diary, today is ' + d + '" > ' + d.toLowerCase() + '.txt', 'git add ' + d.toLowerCase() + '.txt', 'git commit -m "' + d + ' entry"']).concat(['git log --oneline']) });
+
+drill({ id: 'cleanup', ch: 1, title: 'Spring Cleaning', xp: 250,
+  lesson: [{ h: 'Practice: fixing mistakes in three repos', p: 'Same undo moves, three different projects. Hop in, run <b>git status</b>, and it will literally tell you which command fixes things.',
+    viz: row(zone('~/shop', 'z1', blk('app.js 💥', 'orange')), zone('~/website', 'z1', blk('passwords.txt', 'green')), zone('~/photos', 'z1', blk('cover.txt ✖', 'gray'), blk('album.txt', 'red'))),
+    cmds: [['git restore <file>', 'undo edits / bring back a deleted file'], ['git restore --staged <file>', 'unstage'], ['echo "name" > .gitignore', 'ignore a file forever'], ['git add · git commit', 'save the fix']] }],
+  story: 'Three repos, three messes: a scrambled app.js in ~/shop, a staged passwords.txt in ~/website, and a deleted cover.txt in ~/photos (plus a new album to commit).',
+  setup(e) { base(e);
+    const s = repo(e, '~/shop'); commit(e, s, 'Create shop', { 'app.js': 'sell()\n', 'prices.txt': 'apple 1\n' }); e.write(s.root + '/app.js', 's3ll(((#!!\n');
+    const w = repo(e, '~/website'); commit(e, w, 'Create website', { 'index.html': '<h1>Hi</h1>\n' }); e.write(w.root + '/passwords.txt', 'admin:hunter2\n'); w.index['passwords.txt'] = 'admin:hunter2\n';
+    const p = repo(e, '~/photos'); commit(e, p, 'Add cover', { 'cover.txt': '🖼 cover photo\n' }); e.setWork(p, 'cover.txt', undefined); e.write(p.root + '/album.txt', 'summer pics\n'); },
+  goals: [
+    { t: '~/shop: app.js back to normal', ok: e => e.read(H + '/shop/app.js') === 'sell()\n' },
+    { t: '~/website: passwords.txt unstaged', ok: e => { const r = R(e, '~/website'); return !('passwords.txt' in r.index); } },
+    { t: '~/website: commit a .gitignore that ignores passwords.txt', ok: e => { const r = R(e, '~/website'); const t = headT(e, r); return /passwords\.txt/.test(t['.gitignore'] || '') && ![...e.ancestors(e.headId(r))].some(id => 'passwords.txt' in e.commits[id].tree); } },
+    { t: '~/photos: bring back cover.txt and commit album.txt', ok: e => { const t = headT(e, R(e, '~/photos')); return e.isFile(H + '/photos/cover.txt') && 'album.txt' in t && 'cover.txt' in t; } } ],
+  hints: ['cd shop && git restore app.js', 'cd ../website && git restore --staged passwords.txt', 'echo "passwords.txt" > .gitignore, then add + commit .gitignore', 'cd ../photos && git restore cover.txt && git add album.txt && git commit -m "Add album"'],
+  solution: ['cd shop', 'git status', 'git restore app.js', 'cd ../website', 'git status', 'git restore --staged passwords.txt', 'echo "passwords.txt" > .gitignore', 'git add .gitignore', 'git commit -m "Ignore passwords file"', 'cd ../photos', 'git status', 'git restore cover.txt', 'git add album.txt', 'git commit -m "Add summer album"'] });
+
+// ---- World 3 ----
+drill({ id: 'juggler', ch: 2, title: 'Branch Juggler', xp: 250,
+  lesson: [{ h: 'Practice: branch → commit → merge, three times', p: 'Every feature gets its own branch. When it’s done: back to main, merge, delete the branch. Repeat until it feels boring — that’s when you’ve mastered it.',
+    viz: row(flag('main', 'green'), arr('switch -c'), flag('drums', 'purple'), arr('commit'), cm('🥁', 'purple'), arr('switch main · merge'), flag('main', 'green')),
+    cmds: [['git switch -c <branch>', 'new branch and jump on it'], ['git switch main', 'back to main'], ['git merge <branch>', 'bring the work in'], ['git branch -d <branch>', 'tidy up'], ['git branch', 'list branches']] }],
+  story: 'Your band song needs drums, guitar and vocals — record each part on its own branch, merge them all into main, and clean up.',
+  setup(e) { base(e); const r = repo(e, '~/band'); e.cwd = r.root; commit(e, r, 'Start the song', { 'setlist.txt': '1. Intro\n' }); },
+  goals: [
+    { t: 'main has drums.txt', ok: e => 'drums.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
+    { t: 'main has guitar.txt', ok: e => 'guitar.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
+    { t: 'main has vocals.txt', ok: e => 'vocals.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
+    { t: 'Each part made on its own branch (3 branches, 3 merges)', ok: e => branchNames(e).size >= 3 && countRan(e, /^git merge /) >= 3 },
+    { t: 'Clean up: only main is left', ok: e => { const r = R(e, '~/band'); const t = brT(e, r, 'main') || {}; return Object.keys(r.branches).join() === 'main' && ['drums.txt', 'guitar.txt', 'vocals.txt'].every(f => f in t); } } ],
+  hints: ['git switch -c drums → echo "boom" > drums.txt → add → commit', 'git switch main → git merge drums → git branch -d drums', 'Repeat for guitar and vocals'],
+  solution: [['drums', 'boom tss'], ['guitar', 'twang'], ['vocals', 'la la la']].flatMap(([b, s]) => ['git switch -c ' + b, 'echo "' + s + '" > ' + b + '.txt', 'git add ' + b + '.txt', 'git commit -m "Record ' + b + '"', 'git switch main', 'git merge ' + b, 'git branch -d ' + b]).concat(['git log --oneline']) });
+
+drill({ id: 'twinrepos', ch: 2, title: 'Two Repos, Two Features', xp: 250,
+  lesson: [{ h: 'Practice: branches in different projects', p: 'Branches belong to ONE repository. A branch you make in ~/web doesn’t exist in ~/api. Hop between them and run the same branch → commit → merge routine in each.',
+    viz: row(zone('~/web', 'z1', flag('main', 'green'), flag('feature/dark-mode', 'purple')), zone('~/api', 'z1', flag('main', 'green'), flag('feature/login', 'purple'))),
+    cmds: [['cd ../<repo>', 'hop to the other project'], ['git branch', 'branches of THIS repo only'], ['git switch -c feature/<name>', 'start a feature'], ['git merge feature/<name>', 'finish it from main']] }],
+  story: 'Ship dark mode in the web repo and a login endpoint in the api repo — each on a feature branch, each merged into its own main.',
+  setup(e) { base(e); const w = repo(e, '~/web'); commit(e, w, 'Create website', { 'index.html': '<h1>App</h1>\n', 'style.css': 'body{}\n' }); const a = repo(e, '~/api'); commit(e, a, 'Create API', { 'server.js': 'listen(8080)\n' }); },
+  goals: [
+    { t: '~/web: commit dark.css on branch feature/dark-mode', ok: e => ran(e, /feature\/dark-mode/) && anyCommitHas(e, R(e, '~/web'), 'dark.css') },
+    { t: '~/web: merge it into main', ok: e => 'dark.css' in (brT(e, R(e, '~/web'), 'main') || {}) },
+    { t: '~/api: commit login.js on branch feature/login', ok: e => ran(e, /feature\/login/) && anyCommitHas(e, R(e, '~/api'), 'login.js') },
+    { t: '~/api: merge it into main', ok: e => 'login.js' in (brT(e, R(e, '~/api'), 'main') || {}) } ],
+  hints: ['cd web && git switch -c feature/dark-mode', 'echo "body{background:#000}" > dark.css, add, commit, git switch main, git merge feature/dark-mode', 'cd ../api and repeat with feature/login and login.js'],
+  solution: ['cd web', 'git switch -c feature/dark-mode', 'echo "body { background: #000; }" > dark.css', 'git add dark.css', 'git commit -m "Add dark mode"', 'git switch main', 'git merge feature/dark-mode', 'cd ../api', 'git switch -c feature/login', 'echo "route(/login)" > login.js', 'git add login.js', 'git commit -m "Add login endpoint"', 'git switch main', 'git merge feature/login'] });
+
+// ---- World 4 ----
+drill({ id: 'morning', ch: 3, title: 'Morning Sync', xp: 300,
+  lesson: [{ h: 'Practice: the start-of-day routine', p: 'Every morning, visit each repo: <b>fetch</b> to see what teammates did, <b>status</b> to read ahead/behind, then <b>pull</b> or <b>push</b>. Remember: git status only knows what you last fetched.',
+    viz: row(blk('git fetch', 'purple'), arr(), blk('git status', 'yellow'), arr('behind?'), blk('git pull', 'green'), arr('ahead?'), blk('git push', 'blue')),
+    cmds: [['git fetch', 'download news from GitHub'], ['git status', 'ahead / behind / up to date'], ['git pull', 'get teammates’ commits'], ['git push', 'send yours']] }],
+  story: 'Good morning! Teammates pushed to web and docs overnight, and you left an unpushed commit in api yesterday. Sync all three repos.',
+  setup(e) { base(e, { auth: true });
+    for (const n of ['web', 'docs', 'api']) { gh(e, 'you/' + n, [['Create ' + n, { 'README.md': '# ' + n + '\n' }, null, A.you]]); clone(e, 'you/' + n, '~/' + n); }
+    e.ghCommit('you/web', 'main', 'Add navbar', { 'nav.html': '<nav></nav>\n' }, null, A.sam);
+    e.ghCommit('you/docs', 'main', 'Write FAQ', { 'faq.md': '# FAQ\n' }, null, A.grace);
+    commit(e, R(e, '~/api'), 'Add health check', { 'health.js': 'ok()\n' }); },
+  goals: [
+    { t: '~/web: pull Sam’s navbar', ok: e => { const r = R(e, '~/web'); return r.branches.main === e.gh['you/web'].branches.main; } },
+    { t: '~/docs: pull Grace’s FAQ', ok: e => { const r = R(e, '~/docs'); return r.branches.main === e.gh['you/docs'].branches.main; } },
+    { t: '~/api: push your health check', ok: e => 'health.js' in (ghT(e, 'you/api') || {}) },
+    { t: 'Check status in each repo (git status ×3)', ok: e => countRan(e, /^git status/) >= 3 } ],
+  hints: ['cd web → git fetch → git status → git pull', 'cd ../docs → same routine', 'cd ../api → git status says “ahead by 1” → git push'],
+  solution: ['cd web', 'git fetch', 'git status', 'git pull', 'cd ../docs', 'git fetch', 'git status', 'git pull', 'cd ../api', 'git status', 'git push'] });
+
+drill({ id: 'publishall', ch: 3, title: 'Ship It Thrice', xp: 300,
+  lesson: [{ h: 'Practice: putting projects online', p: 'Same moves, three projects: create the GitHub repo, connect it, push. Use the long way once and the gh shortcut for the others — and remember private repos for things only you should see.',
+    viz: row(zone('💻', 'z1', blk('calculator', 'blue'), blk('todo-app', 'blue'), blk('old-notes', 'blue')), arr('push ⇧'), zone('☁', 'z3', blk('🌍 public', 'green'), blk('🌍 public', 'green'), blk('🔒 private', 'orange'))),
+    cmds: [['gh repo create <name> --public', 'create on GitHub'], ['git remote add origin <url>', 'connect'], ['git push -u origin main', 'upload + remember upstream'], ['gh repo create <name> --private --source=. --push', 'all three steps in one']] }],
+  story: 'Publish calculator and todo-app publicly, and back up old-notes as a PRIVATE repo.',
+  setup(e) { base(e, { auth: true }); for (const [n, f] of [['calculator', 'calc.js'], ['todo-app', 'todo.js'], ['old-notes', 'notes.md']]) { const r = repo(e, '~/' + n); commit(e, r, 'Create ' + n, { [f]: '// ' + n + '\n' }); } },
+  goals: [['calculator', 'public'], ['todo-app', 'public'], ['old-notes', 'private']].map(([n, v]) => ({ t: n + ' on GitHub (' + v + '), main pushed with upstream', ok: e => { const g = G(e, 'you/' + n), r = R(e, '~/' + n); return !!g && g.vis === v && g.branches.main === r.branches.main && r.upstream.main === 'origin/main'; } })),
+  hints: ['cd calculator → gh repo create calculator --public → git remote add origin https://github.com/you/calculator.git → git push -u origin main', 'Shortcut: gh repo create todo-app --public --source=. --push', 'old-notes needs --private'],
+  solution: ['cd calculator', 'gh repo create calculator --public', 'git remote add origin https://github.com/you/calculator.git', 'git push -u origin main', 'cd ../todo-app', 'gh repo create todo-app --public --source=. --push', 'cd ../old-notes', 'gh repo create old-notes --private --source=. --push', 'gh repo list'] });
+
+drill({ id: 'collector', ch: 3, title: 'Clone Collector', xp: 250,
+  lesson: [{ h: 'Practice: organising clones', p: 'Keep your clones tidy in one folder (many devs use ~/code). <b>git clone</b> always creates the new folder inside the folder you are standing in.',
+    viz: row(blk('~/code/', 'purple'), arr('git clone ×3'), blk('cheatsheets/', 'blue'), blk('examples/', 'blue'), blk('starter/', 'blue')),
+    cmds: [['mkdir code && cd code', 'make a home for clones'], ['git clone <url>', 'download a repo here'], ['cd <repo>', 'enter it'], ['git switch <branch>', 'check out a remote branch']] }],
+  story: 'Octo Academy gave you three repos. Collect them all inside ~/code, then open the solutions branch of starter.',
+  setup(e) { base(e); gh(e, 'octo-academy/cheatsheets', [['Add cheatsheet', { 'git.md': '# Git cheatsheet\n' }]]); gh(e, 'octo-academy/examples', [['Add examples', { 'hello.sh': 'echo hi\n' }]]); gh(e, 'octo-academy/starter', [['Starter project', { 'TODO.md': '- build it\n' }]]); ghBranch(e, 'octo-academy/starter', 'solutions', 'main', [['Add solutions', { 'SOLUTION.md': 'here you go\n' }]]); },
+  goals: [
+    { t: 'Clone cheatsheets into ~/code', ok: e => !!R(e, '~/code/cheatsheets') },
+    { t: 'Clone examples into ~/code', ok: e => !!R(e, '~/code/examples') },
+    { t: 'Clone starter into ~/code', ok: e => !!R(e, '~/code/starter') },
+    { t: 'In starter, switch to the solutions branch', ok: e => { const r = R(e, '~/code/starter'); return !!r && r.head.branch === 'solutions'; } } ],
+  hints: ['mkdir code && cd code', 'git clone https://github.com/octo-academy/cheatsheets.git (then examples, starter)', 'cd starter && git switch solutions'],
+  solution: ['mkdir code', 'cd code', 'git clone https://github.com/octo-academy/cheatsheets.git', 'git clone https://github.com/octo-academy/examples.git', 'git clone https://github.com/octo-academy/starter.git', 'ls', 'cd starter', 'git branch -a', 'git switch solutions'] });
+
+drill({ id: 'prrush', ch: 3, title: 'Pull Request Rush', xp: 350,
+  lesson: [{ h: 'Practice: two PRs back to back', p: 'The PR loop again, twice in a row: branch → commit → push → PR → merge. After each merge you land back on an up-to-date main, ready for the next feature.',
+    viz: row(flag('main', 'green'), arr(), flag('feature/about', 'purple'), arr('PR #1'), flag('main', 'green'), arr(), flag('feature/contact', 'purple'), arr('PR #2'), flag('main', 'green')),
+    cmds: [['git switch -c feature/<name>', 'start'], ['git push -u origin feature/<name>', 'publish'], ['gh pr create --title "…" --body "…"', 'propose'], ['gh pr merge --merge --delete-branch', 'merge + clean up']] }],
+  story: 'Ship an About page and a Contact page to team-app — each through its own pull request.',
+  setup(e) { base(e, { auth: true }); gh(e, 'you/team-app', [['Create team app', { 'index.html': '<h1>Team App</h1>\n' }, null, A.you]]); const r = clone(e, 'you/team-app', '~/team-app'); e.cwd = r.root; },
+  goals: [
+    { t: 'PR with about.html merged', ok: e => G(e, 'you/team-app').prs.some(p => p.state === 'MERGED' && 'about.html' in e.tree(p.mergeCommit)) },
+    { t: 'PR with contact.html merged', ok: e => G(e, 'you/team-app').prs.some(p => p.state === 'MERGED' && 'contact.html' in e.tree(p.mergeCommit)) },
+    { t: 'Local main matches GitHub main', ok: e => { const r = R(e, '~/team-app'); const g = G(e, 'you/team-app'); return r.branches.main === g.branches.main && 'contact.html' in (ghT(e, 'you/team-app') || {}) && 'about.html' in (ghT(e, 'you/team-app') || {}); } },
+    { t: 'No leftover feature branches (local or GitHub)', ok: e => { const r = R(e, '~/team-app'); const g = G(e, 'you/team-app'); return Object.keys(r.branches).join() === 'main' && Object.keys(g.branches).join() === 'main' && g.prs.filter(p => p.state === 'MERGED').length >= 2; } } ],
+  hints: ['git switch -c feature/about, create about.html, add, commit', 'git push -u origin feature/about → gh pr create … → gh pr merge --merge --delete-branch', 'Then the same for feature/contact'],
+  solution: [['about', 'About us'], ['contact', 'Contact us']].flatMap(([n, t]) => ['git switch -c feature/' + n, 'echo "<h1>' + t + '</h1>" > ' + n + '.html', 'git add ' + n + '.html', 'git commit -m "Add ' + n + ' page"', 'git push -u origin feature/' + n, 'gh pr create --title "Add ' + n + ' page" --body "New ' + n + ' page"', 'gh pr merge --merge --delete-branch']).concat(['git log --oneline']) });
+
+// ---- World 5 ----
+drill({ id: 'tagteam', ch: 4, title: 'Tag Team', xp: 300,
+  lesson: [{ h: 'Practice: versioning two projects', p: 'Tagging is the same routine in every repo: decide the version, tag, push the tag. A <b>0.x</b> version means “early, may still change”.',
+    viz: row(zone('~/calc-app', 'z1', cm('…', 'blue'), flag('🏷 v1.2.0', 'yellow')), zone('~/todo-app', 'z1', cm('…', 'blue'), flag('🏷 v0.1.0', 'yellow'))),
+    cmds: [['git tag -a v1.2.0 -m "msg"', 'annotated tag on HEAD'], ['git push --tags', 'push all tags'], ['git push origin <tag>', 'push one tag'], ['gh release create <tag> --title … --notes …', 'publish a release']] }],
+  story: 'Release day for two apps: tag calc-app as v1.2.0 and publish a GitHub release, then tag todo-app’s first preview as v0.1.0.',
+  setup(e) { base(e, { auth: true }); gh(e, 'you/calc-app', [['Create calculator', { 'calc.js': 'add\n' }, null, A.you], ['Add history', { 'calc.js': 'add\nhistory\n' }, null, A.you]]); gh(e, 'you/todo-app', [['Create todo app', { 'todo.js': 'list\n' }, null, A.you]]); clone(e, 'you/calc-app', '~/calc-app'); clone(e, 'you/todo-app', '~/todo-app'); },
+  goals: [
+    { t: 'calc-app: annotated tag v1.2.0 on the latest commit, on GitHub', ok: e => { const g = G(e, 'you/calc-app'); const t = g.tags['v1.2.0']; return !!t && t.annot && t.id === g.branches.main; } },
+    { t: 'calc-app: GitHub release v1.2.0', ok: e => G(e, 'you/calc-app').releases.some(x => x.tag === 'v1.2.0') },
+    { t: 'todo-app: annotated tag v0.1.0, on GitHub', ok: e => { const t = G(e, 'you/todo-app').tags['v0.1.0']; return !!t && t.annot; } } ],
+  hints: ['cd calc-app → git tag -a v1.2.0 -m "Version 1.2.0" → git push --tags', 'gh release create v1.2.0 --title "v1.2.0" --notes "History panel"', 'cd ../todo-app → git tag -a v0.1.0 -m "First preview" → git push origin v0.1.0'],
+  solution: ['cd calc-app', 'git tag -a v1.2.0 -m "Version 1.2.0"', 'git push --tags', 'gh release create v1.2.0 --title "v1.2.0" --notes "Adds a history panel"', 'cd ../todo-app', 'git tag -a v0.1.0 -m "First preview"', 'git push origin v0.1.0'] });
+
+// keep each world's stages together (stable sort), practice drills at the end of their world
+LV.sort((a, b) => a.ch - b.ch);
 
 const SANDBOX = { id: 'sandbox', ch: -1, title: 'Free Play Sandbox', xp: 0, lesson: [], story: 'No rules. Try anything — break things, fix things. A couple of GitHub repos are waiting for you.',
   setup(e) { base(e, { auth: true }); gh(e, 'octo-academy/hello-world', [['Initial commit', { 'README.md': '# Hello World\n' }], ['Add greeting', { 'hello.sh': 'echo hi\n' }]]); const r = repo(e, '~/playground'); e.cwd = r.root; commit(e, r, 'First commit', { 'README.md': '# Playground\n' }); e.write('/home/you/templates/pages.yml', PAGES_YML); e.write('/home/you/templates/ci.yml', CI_YML); },

@@ -504,7 +504,7 @@ Engine.prototype = {
   // independent copy of the world (used to look ahead for hints); runs never wait in real time
   snapshot() {
     const e = new Engine();
-    for (const k of ['fs', 'repos', 'commits', 'gh', 'cwd', 'prevCwd', 'config', 'auth', 'ssh', 'clock', 'runSeq', 'history', 'lv']) if (this[k] !== undefined) e[k] = JSON.parse(JSON.stringify(this[k]));
+    for (const k of ['fs', 'repos', 'commits', 'gh', 'cwd', 'prevCwd', 'config', 'auth', 'ssh', 'clock', 'runSeq', 'history', 'lv', 'visited', 'readFiles']) if (this[k] !== undefined) e[k] = JSON.parse(JSON.stringify(this[k]));
     e.testRules = this.testRules; e.realtime = false; e.events = [];
     return e;
   },
@@ -547,7 +547,7 @@ Engine.prototype.shell = {
     const p = this.norm(t || '~');
     if (!this.exists(p)) this.die('bash: cd: ' + a[0] + ': No such file or directory');
     if (!this.isDir(p)) this.die('bash: cd: ' + a[0] + ': Not a directory');
-    this.prevCwd = this.cwd; this.cwd = p;
+    this.prevCwd = this.cwd; this.cwd = p; (this.visited = this.visited || []).push(p);
   },
   mkdir(a) {
     const { pos, f } = parseArgs(a);
@@ -565,7 +565,7 @@ Engine.prototype.shell = {
   },
   cat(a) {
     if (!a.length) this.die('cat: missing file operand');
-    for (const x of a) { const p = this.norm(x); if (this.isDir(p)) { this.err('cat: ' + x + ': Is a directory'); continue; } const c = this.read(p); if (c === undefined) { this.err('cat: ' + x + ': No such file or directory'); continue; } splitLines(c).forEach(l => this.p(l, /^(<<<<<<<|=======|>>>>>>>)/.test(l) ? 'warn' : '')); }
+    for (const x of a) { const p = this.norm(x); if (this.isDir(p)) { this.err('cat: ' + x + ': Is a directory'); continue; } const c = this.read(p); if (c === undefined) { this.err('cat: ' + x + ': No such file or directory'); continue; } (this.readFiles = this.readFiles || []).push(p); splitLines(c).forEach(l => this.p(l, /^(<<<<<<<|=======|>>>>>>>)/.test(l) ? 'warn' : '')); }
   },
   echo(a) {
     let e = false, n = false; while (a[0] === '-e' || a[0] === '-n') { if (a[0] === '-e') e = true; else n = true; a = a.slice(1); }

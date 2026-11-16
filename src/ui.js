@@ -36,6 +36,7 @@ function showTitle() {
   const doneN = LV.filter(l => save.stars[l.id]).length;
   const starN = LV.reduce((a, l) => a + (save.stars[l.id] || 0), 0);
   const nextIdx = LV.findIndex(l => !save.stars[l.id]);
+  if ($('#nStages')) $('#nStages').textContent = LV.length;
   $('#scoreline').innerHTML = `<div>XP <b>${totalXP()}</b> / ${maxXP}</div><div>STAGES <b>${doneN}</b> / ${LV.length}</div><div>STARS <b>${starN}</b> / ${LV.length * 3}</div>`;
   let h = '';
   CH.forEach((name, ci) => {
@@ -43,7 +44,7 @@ function showTitle() {
     h += `<div class="chapter"><h3>WORLD ${ci + 1} · ${name}<span>${ls.filter(([l]) => save.stars[l.id]).length}/${ls.length}</span></h3><div class="stages">`;
     for (const [l, i] of ls) {
       const s = save.stars[l.id] || 0;
-      h += `<div class="stage ${s ? 'done' : ''} ${i === nextIdx ? 'next' : ''} ${l.id === 'pages' ? 'boss' : ''}" data-i="${i}"><div class="n">STAGE ${String(i + 1).padStart(2, '0')}${l.id === 'pages' ? ' · BOSS' : ''}</div><div class="t">${esc(l.title)}</div><div class="s">${[1, 2, 3].map(k => `<span class="${k <= s ? 'on' : ''}">★</span>`).join('')}</div></div>`;
+      h += `<div class="stage ${s ? 'done' : ''} ${i === nextIdx ? 'next' : ''} ${l.id === 'pages' ? 'boss' : ''} ${l.drill ? 'drill' : ''}" data-i="${i}"><div class="n">STAGE ${String(i + 1).padStart(2, '0')}${l.id === 'pages' ? ' · BOSS' : l.drill ? ' · PRACTICE' : ''}</div><div class="t">${esc(l.title)}</div><div class="s">${[1, 2, 3].map(k => `<span class="${k <= s ? 'on' : ''}">★</span>`).join('')}</div></div>`;
     }
     h += '</div></div>';
   });
