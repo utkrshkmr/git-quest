@@ -235,3 +235,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .intro-page p{display:flex;flex-direction:column;gap:10px;margin:14px 0 6px}
 .learn-line{display:block;font-size:19px;line-height:1.5;color:#f1f3ff;background:#0a0a2e;box-shadow:0 0 0 2px #262668;padding:12px 16px}
 .learn-line::before{content:'▶ ';color:var(--yel);font-size:14px}
+
+a.presents{text-decoration:none;cursor:pointer}
+a.presents:hover .xlab{filter:drop-shadow(0 0 16px #ff2bd6aa);transform:scale(1.06)}
+a.presents:hover span{color:var(--yel)}
+.presents .xlab{transition:transform .15s}
