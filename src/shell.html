@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git Quest — learn Git & GitHub, arcade style</title>
+<meta name="description" content="A free browser game that teaches Git and GitHub from the very first terminal command to deploying a site with GitHub Actions and Pages.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>/*CSS*/</style>
+</head>
+<body>
+<div id="title" class="hidden">
+  <div class="logo">GIT QUEST<small>VERSION CONTROL ARCADE</small></div>
+  <p class="tagline">29 stages from your first <b>ls</b> to launching a website with <b>GitHub Actions</b>. Learn each move in a quick training round, then use it right away in a mission. Everything runs safely in your browser, so feel free to break things.</p>
+  <div class="title-btns"><button class="yel blink" id="startBtn">▶ PRESS START</button><button class="ghost" id="sandboxBtn">FREE PLAY</button></div>
+  <div class="hud-score" id="scoreline"></div>
+  <div class="world" id="worldmap"></div>
+  <p class="tagline" style="margin-top:28px;font-size:13px">Commands behave like real git 2.47 and gh 2.63. The GitHub side is simulated: nothing touches your real account.<br>Free &amp; open source · <a href="https://github.com/utkrshkmr/git-quest" style="color:var(--cyan)">github.com/utkrshkmr/git-quest</a> · stars, issues and new levels welcome!</p>
+</div>
+<div id="game" class="hidden">
+  <div id="hud">
+    <button class="ghost" id="mapBtn" title="World map">◀ MAP</button>
+    <div class="stg" id="stgName"></div>
+    <div class="sp"></div>
+    <div class="xp"><span id="xpTxt">XP 0</span><div class="xpbar"><i id="xpFill"></i></div></div>
+    <button class="ghost" id="prevBtn" title="Previous stage">◀</button><button class="ghost" id="nextBtn" title="Next stage">▶</button>
+    <button id="lessonBtn">📖 TRAINING</button><button class="ghost" id="movesBtn">📜 MOVES</button><button class="ghost" id="soundBtn">🔊</button>
+  </div>
+  <div id="main">
+    <aside id="mission"></aside>
+    <section id="right">
+      <div id="dash"><svg id="wires"></svg><div id="dashGrid"></div></div>
+      <div id="term">
+        <div id="termbar"><i style="background:#ff4d6d"></i><i style="background:#ffe14d"></i><i style="background:#39ff88"></i>&nbsp; TERMINAL</div>
+        <div id="termout"></div>
+        <div id="termin"><span id="prompt"></span><input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="terminal input"></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="ov" class="ov hidden"></div>
+<script>/*ENGINE*/</script>
+<script>/*LEVELS*/</script>
+<script>/*UI*/</script>
+</body>
+</html>
