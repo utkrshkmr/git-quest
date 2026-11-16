@@ -110,11 +110,13 @@ add({ id: 'terminal', ch: 0, title: 'Hello, Terminal', xp: 100,
   setup(e) { base(e); e.write('/home/you/Documents/welcome.txt', 'Welcome to Git Quest!\nEvery legend starts with a single command.\n'); },
   goals: [
     { t: 'Read Documents/welcome.txt with cat', ok: e => ran(e, /^cat\b.*welcome/) },
-    { t: 'Create a folder called my-project in your home', ok: e => e.isDir('/home/you/my-project') },
-    { t: 'Move into my-project (cd)', ok: e => e.cwd === '/home/you/my-project' },
-    { t: 'Create notes.txt inside it with some text', ok: e => (e.read('/home/you/my-project/notes.txt') || '').trim().length > 0 } ],
+    { t: 'Create a folder called my-project', ok: e => projDirs(e).length > 0 },
+    { t: 'Move into my-project (cd)', ok: e => projDirs(e).includes(e.cwd) },
+    { t: 'Create notes.txt inside it with some text', ok: e => projDirs(e).some(d => (e.read(d + '/notes.txt') || '').trim().length > 0) } ],
   hints: ['Type ls to see what is in your home folder.', 'cat Documents/welcome.txt', 'mkdir my-project then cd my-project', 'echo "my first note" > notes.txt'],
   solution: ['ls', 'cat Documents/welcome.txt', 'mkdir my-project', 'cd my-project', 'echo "my first note" > notes.txt', 'ls'] });
+
+function projDirs(e) { return Object.keys(e.fs).filter(p => e.fs[p].d && p.endsWith('/my-project')); }
 
 // ---------------- CH 1 ----------------
 add({ id: 'config', ch: 1, title: 'Who Are You?', xp: 100,

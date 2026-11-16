@@ -532,7 +532,7 @@ Engine.prototype.shell = {
       if (!kids.length) continue;
       const fmt = k => { const full = this.norm(k, p); return this.isDir(full) ? k + '/' : k; };
       if (long) kids.forEach(k => { const full = this.norm(k, p); const d = this.isDir(full); this.p((d ? 'drwxr-xr-x' : '-rw-r--r--') + '  you  ' + String(d ? 4096 : (this.read(full) || '').length).padStart(6) + '  ' + fmt(k), d ? 'dir' : ''); });
-      else this.out.push({ t: kids.map(fmt).join('   '), c: '', parts: kids.map(k => ({ t: fmt(k), c: this.isDir(this.norm(k, p)) ? 'dir' : '' })) });
+      else this.out.push({ t: kids.map(fmt).join('   '), c: '', parts: kids.flatMap((k, i) => [{ t: (i ? '   ' : '') + fmt(k), c: this.isDir(this.norm(k, p)) ? 'dir' : '' }]) });
     }
   },
   cd(a) {
