@@ -233,6 +233,7 @@ function runCmd(line) {
   if (clear) $('#termout').innerHTML = '';
   else termLine(res.lines);
   res.ok === false ? SFX.err() : SFX.key();
+  const doneBefore = goalState.filter(Boolean).length;
   if (res.ok === false && !clear) smartHint(line);
   const evs = E.events.slice(evBefore);
   for (const ev of evs) {
@@ -240,6 +241,7 @@ function runCmd(line) {
     if (ev.type === 'push') SFX.push();
   }
   after(evs);
+  if (res.ok !== false && !clear) wrongPlaceNudge(line, doneBefore);
 }
 // ---------- smart hint: where am I + what to type next ----------
 function whereAmI() {
@@ -255,17 +257,44 @@ function lookahead(fromCwd, k) {
   for (const c of cur.solution.slice(k)) { t.run(c); t.settle(true); }
   return goalsDone(t);
 }
+// Where must step k of the solution run? (recorded by replaying the solution from a fresh start)
+function stepPlace(k) { return expCwd[k] || null; }
+const isCd = c => /^cd(\s|$)/.test(c);
+const isGitish = c => /^(git|gh)\s/.test(c);
+// Are we in the right place for step k? Git/gh commands only need the right repo; others need the exact folder.
+function placeOk(k) {
+  const want = stepPlace(k); if (!want) return true;
+  if (E.cwd === want) return true;
+  if (isGitish(cur.solution[k])) { const a = E.findRepo(), b = E.findRepo(want); return !!a && !!b && a.root === b.root; }
+  return false;
+}
+// The next useful solution step: the LATEST step from which the rest of the solution still finishes the stage
+// (run from the folder that step expects). Returns {k, cmd, wrongPlace, place}.
 function suggestNext(failed) {
   const sol = cur.solution, need = cur.goals.length;
   if (!sol.length || !need) return null;
-  const pick = (k, cdTo) => ({ cmd: sol[k], cd: cdTo });
-  // 1) latest step from which the rest of the solution still finishes the stage, from where you are
-  for (let k = sol.length - 1; k >= 0; k--) { if (sol[k] === failed) continue; if (lookahead(null, k) === need) return pick(k); }
-  // 2) same, but after moving to the folder that step expects
-  for (let k = sol.length - 1; k >= 0; k--) { const d = expCwd[k]; if (!d || d === E.cwd || !E.isDir(d)) continue; if (lookahead(d, k) === need) return pick(k, d); }
-  // 3) best effort: the step that gets the most goals done
-  let best = -1, bk = 0; for (let k = 0; k < sol.length; k++) { const n = lookahead(null, k); if (n > best) { best = n; bk = k; } }
-  return pick(bk);
+  const skipCd = cur.ch > 0; // in World 1, cd IS the lesson, so suggest it directly
+  let k = -1;
+  for (let i = sol.length - 1; i >= 0; i--) {
+    if (skipCd && isCd(sol[i])) continue;             // location is handled separately below
+    if (sol[i] === failed && placeOk(i)) continue;    // typed it in the right place and it still failed: look further
+    if (lookahead(stepPlace(i), i) === need) { k = i; break; }
+  }
+  if (k < 0) { // best effort: whichever step gets the most goals done
+    let best = -1; for (let i = 0; i < sol.length; i++) { if (skipCd && isCd(sol[i])) continue; const n = lookahead(stepPlace(i), i); if (n > best) { best = n; k = i; } }
+  }
+  if (k < 0) return null;
+  return { k, cmd: sol[k], wrongPlace: !placeOk(k), place: stepPlace(k) };
+}
+function placeName(dir) { const r = E.findRepo(dir); return r && !r.bare && r.root === dir ? 'the ' + E.pretty(dir) + ' repo' : E.pretty(dir); }
+function hintLines(s) {
+  if (!s) return [];
+  if (s.wrongPlace) {
+    const to = E.pretty(s.place);
+    return [{ t: '💡 Wrong place! The next step happens in ' + placeName(s.place) + ', not here.', c: 'warn' },
+            { t: '💡 Go there first — type:  cd ' + to + '   (click to paste)', c: 'cy', paste: 'cd ' + to }];
+  }
+  return [{ t: '💡 You’re in the right place. Try typing:  ' + s.cmd + '   (click to paste)', c: 'cy', paste: s.cmd }];
 }
 function smartHint(failed) {
   const lines = [{ t: '💡 ' + whereAmI(), c: 'warn' }];
@@ -273,13 +302,20 @@ function smartHint(failed) {
   if (cur.goals.length && i >= 0) {
     lines.push({ t: '💡 Next objective: ' + cur.goals[i].t, c: 'warn' });
     let s = null; try { s = suggestNext(failed.trim()); } catch (e) {}
-    if (s && s.cd) {
-      const rel = E.pretty(s.cd);
-      lines.push({ t: '💡 That step happens in ' + rel + '. First type:  cd ' + rel + '   (click to paste)', c: 'cy', paste: 'cd ' + rel });
-      lines.push({ t: '   then:  ' + s.cmd + '   (click to paste)', c: 'cy', paste: s.cmd });
-    } else if (s) lines.push({ t: '💡 Try typing:  ' + s.cmd + '   (click to paste)', c: 'cy', paste: s.cmd });
+    lines.push(...hintLines(s));
   } else if (!cur.goals.length) lines.push({ t: '💡 Stuck? Type help for shell basics, git help or gh help for the rest.', c: 'warn' });
   termLine(lines);
+}
+// A command that WORKED but in the wrong place doesn't tick anything — catch the common case:
+// the player typed the right next command (same first two words) while standing in the wrong folder/repo.
+function wrongPlaceNudge(line, doneBefore) {
+  if (!cur.goals.length || goalState.every(Boolean)) return;
+  if (goalState.filter(Boolean).length > doneBefore) return; // made progress, all good
+  let s = null; try { s = suggestNext(line.trim()); } catch (e) {}
+  if (!s || !s.wrongPlace) return;
+  const head = c => c.trim().split(/\s+/).slice(0, 2).join(' ');
+  if (head(line) !== head(s.cmd)) return;
+  termLine([{ t: '💡 ' + whereAmI(), c: 'warn' }].concat(hintLines(s)));
 }
 function handleOpen(url) {
   const g = Object.values(E.gh).find(x => x.pages.enabled && url.replace(/\/?$/, '/').startsWith(x.pages.url));
