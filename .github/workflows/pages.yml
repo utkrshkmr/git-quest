@@ -25,6 +25,8 @@ jobs:
           node-version: 20
       - name: Play every stage's solution
         run: node tests/solutions.test.js
+      - name: Right command in the wrong place must not count
+        run: node tests/location.test.js
       - name: Bundle into one HTML file
         run: python3 build.py
       - name: Upload site

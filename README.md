@@ -14,7 +14,7 @@ Git Quest is for students at any level, high schoolers included, who have never 
 - **Nothing to install and nothing to break.** Everything runs in the browser, and the GitHub side is simulated, so no real account is touched.
 - **Arcade style.** XP, 1–3 stars per stage (fewer if you use hints or the solution), confetti, and 8-bit sound effects you can mute.
 
-## The 6 worlds / 45 stages
+## The 6 worlds / 48 stages
 
 Every stage teaches **one** new idea. 🔁 marks **practice** stages: no new commands, just the same moves in harder situations (hopping between projects, deep folders, many repos at once), so they become muscle memory.
 
@@ -23,7 +23,7 @@ Every stage teaches **one** new idea. 🔁 marks **practice** stages: no new com
 | 1 · Terminal Town | `pwd` + `ls` · `cd` · `cat` · `mkdir` · `touch` / `echo` · 🔁 Folder Maze |
 | 2 · Local Lab | config · `init` · staging · commits · `log` / `show` · `blame` / `diff` · `restore` · `.gitignore` · 🔁 Project Hopper · 🔁 Commit Marathon · 🔁 Spring Cleaning |
 | 3 · Branch Forest | branches · fast-forward · 3-way merge · **merge-conflict boss** · `rebase` · `stash` · `amend` / `revert` · `reset` + `reflog` · `cherry-pick` · 🔁 Branch Juggler · 🔁 Two Repos, Two Features |
-| 4 · GitHub City | `gh auth` + push · clone · fetch / pull / rejected pushes · SSH keys · pull requests · fork & contribute · mirror & delete a repo · issues + docs · 🔁 Morning Sync · 🔁 Ship It Thrice · 🔁 Clone Collector · 🔁 Pull Request Rush |
+| 4 · GitHub City | `gh auth` + push · clone · fetch / pull / rejected pushes · a teammate's branch · SSH keys · pull requests · fork & contribute · keep your fork fresh (`upstream`) · mirror & delete a repo · issues + docs · 🔁 Morning Sync · 🔁 Ship It Thrice · 🔁 Clone Collector · 🔁 Pull Request Rush · 🔁 Fork Keeper |
 | 5 · Version Vault | semantic versioning · annotated tags · changelog + GitHub releases · 🔁 Tag Team |
 | 6 · Action Castle | GitHub Actions CI catches a real bug · **final boss: deploy a site with GitHub Pages** |
 
@@ -45,7 +45,8 @@ open dist/index.html      # or just double-click it
 No dependencies: plain HTML, CSS and JavaScript. Node is only used for the tests:
 
 ```bash
-node tests/solutions.test.js   # plays all 45 stages' solutions and checks every goal
+node tests/solutions.test.js   # plays all 48 stages' solutions and checks every goal
+node tests/location.test.js    # right command in the wrong folder/repo must NOT count
 ```
 
 ## How it's built

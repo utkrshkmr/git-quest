@@ -32,6 +32,7 @@ Guidelines:
 - **Teach one idea per stage.** Explain it with blocks and arrows (`blk`, `cm`, `flag`, `arr`, `row`, `zone`), not walls of text.
 - **Write goals about the end state, not the exact commands.** There are usually several right answers. Check the result, e.g. "main contains score.txt" rather than "ran git merge".
 - **Always include a working `solution`.** The test suite runs it.
+- **Check where a command ran, not just that it was typed.** Use `did(e, /regex/, '~/repo')`: it only counts commands that succeeded inside that repo or folder. Add a case to `tests/location.test.js` for new stages.
 - If a stage needs a git or gh command the simulator doesn't support yet, add it to `src/engine.js`. Keep the output and error messages as close to the real tools as possible.
 
 ## Reporting bugs

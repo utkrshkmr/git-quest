@@ -32,6 +32,14 @@ function gh(e, key, hist, o) { const g = e.ghCreate(key, o); for (const h of his
 function ghBranch(e, key, name, from, hist) { const g = e.gh[key]; g.branches[name] = g.branches[from]; for (const h of hist || []) e.ghCommit(key, name, h[0], h[1], h[2], h[3] || A.oct); }
 function clone(e, key, path) { return e.cloneInto(e.gh[key], e.norm(path), 'https://github.com/' + key + '.git'); }
 function sw(e, r, b) { e.checkoutTree(r, e.tree(e.headId(r)), e.tree(r.branches[b]), true); r.head = { branch: b }; }
+// did(e, /regex/, where): the command ran successfully AND in the right place.
+// `where` is a folder: matches if the command ran inside that repo, or with that folder as the current directory.
+function did(e, re, where, opts) {
+  const root = where ? e.norm(where) : null, any = opts && opts.evenIfFailed;
+  return (e.cmdlog || []).some(x => re.test(x.cmd) && (any || x.ok) && (!root || x.repo === root || x.cwd === root));
+}
+function didCount(e, re, where) { const root = where ? e.norm(where) : null; return (e.cmdlog || []).filter(x => x.ok && re.test(x.cmd) && (!root || x.repo === root || x.cwd === root)).length; }
+function didRepos(e, re) { return new Set((e.cmdlog || []).filter(x => x.ok && x.repo && re.test(x.cmd)).map(x => x.repo)); }
 const R = (e, p) => e.repos[e.norm(p)];
 const ran = (e, re) => e.history.some(h => re.test(h));
 const G = (e, k) => e.ghGet(k);
@@ -110,9 +118,9 @@ add({ id: 'terminal', ch: 0, title: 'Where Am I?', xp: 50,
   story: 'You just woke up in a strange computer. Look around before you move!',
   setup(e) { homeWorld(e); },
   goals: [
-    { t: 'Ask where you are: type pwd', ok: e => ran(e, /^pwd\b/) },
-    { t: 'List what is here: type ls', ok: e => ran(e, /^ls(\s+-\w+)*\s*$/) },
-    { t: 'Peek inside Documents: type ls Documents', ok: e => ran(e, /^ls(\s+-\w+)*\s+(\.\/)?Documents\/?\s*$/) } ],
+    { t: 'Ask where you are: type pwd', ok: e => did(e, /^pwd\b/) },
+    { t: 'List what is here: type ls', ok: e => did(e, /^ls(\s+-\w+)*\s*$/, HOME_) },
+    { t: 'Peek inside Documents: type ls Documents', ok: e => did(e, /^ls(\s+-\w+)*\s+\S*Documents\/?\s*$/) } ],
   hints: ['Type pwd and press Enter', 'Type ls and press Enter', 'Type ls Documents'],
   solution: ['pwd', 'ls', 'ls Documents'] });
 
@@ -163,7 +171,7 @@ add({ id: 'files', ch: 0, title: 'Make Files', xp: 75,
   story: 'You are inside my-project. Fill it with your first files.',
   setup(e) { homeWorld(e); e.mkdirp(HOME_ + '/my-project'); e.cwd = HOME_ + '/my-project'; },
   goals: [
-    { t: 'Create an empty file with touch', ok: e => ran(e, /^touch\s+\S/) && e.children(HOME_ + '/my-project').length > 0 },
+    { t: 'Create an empty file with touch', ok: e => did(e, /^touch\s+\S/) && e.children(HOME_ + '/my-project').length > 0 },
     { t: 'Write some text into notes.txt with echo', ok: e => (e.read(HOME_ + '/my-project/notes.txt') || '').trim().length > 0 },
     { t: 'Read notes.txt back with cat', ok: e => didRead(e, HOME_ + '/my-project/notes.txt') } ],
   hints: ['touch ideas.txt', 'echo "my first note" > notes.txt', 'cat notes.txt'],
@@ -182,7 +190,7 @@ add({ id: 'config', ch: 1, title: 'Who Are You?', xp: 100,
     { t: 'Set user.name', ok: e => !!e.config['user.name'] },
     { t: 'Set user.email', ok: e => /@/.test(e.config['user.email'] || '') },
     { t: 'Set init.defaultBranch to main', ok: e => e.config['init.defaultbranch'] === 'main' },
-    { t: 'Check your settings with git config --list', ok: e => ran(e, /git config (--global )?(--list|-l)/) } ],
+    { t: 'Check your settings with git config --list', ok: e => did(e, /git config (--global )?(--list|-l)/) } ],
   hints: ['Wrap names with spaces in quotes: "Ada Lovelace"', 'git config --global user.email "ada@example.com"', 'git config --global init.defaultBranch main'],
   solution: ['git --version', 'git config --global user.name "Ada Lovelace"', 'git config --global user.email "ada@example.com"', 'git config --global init.defaultBranch main', 'git config --list'] });
 
@@ -195,8 +203,8 @@ add({ id: 'init', ch: 1, title: 'Start the Time Machine', xp: 100,
   goals: [
     { t: 'Go into the recipes folder', ok: e => e.cwd.startsWith('/home/you/recipes') },
     { t: 'Initialize a Git repository there', ok: e => !!R(e, '~/recipes') },
-    { t: 'Look at the hidden .git folder (ls -a)', ok: e => ran(e, /^ls\s+-[a-zA-Z]*a/) },
-    { t: 'Check the state with git status', ok: e => ran(e, /^git status/) } ],
+    { t: 'Look at the hidden .git folder (ls -a)', ok: e => did(e, /^ls\s+-[a-zA-Z]*a/, '~/recipes') && !!R(e, '~/recipes') },
+    { t: 'Check the state with git status', ok: e => did(e, /^git status/, '~/recipes') } ],
   hints: ['cd recipes', 'git init', 'ls -a then git status'],
   solution: ['cd recipes', 'git init', 'ls -a', 'git status'] });
 
@@ -213,7 +221,7 @@ add({ id: 'stage', ch: 1, title: 'The Staging Area', xp: 150,
     { t: 'Stage pancakes.md', ok: e => 'pancakes.md' in R(e, '~/recipes').index },
     { t: 'Stage waffles.md', ok: e => 'waffles.md' in R(e, '~/recipes').index },
     { t: 'Keep shopping-list.txt UNstaged', ok: e => !('shopping-list.txt' in R(e, '~/recipes').index) && ('pancakes.md' in R(e, '~/recipes').index) },
-    { t: 'Verify with git status', ok: e => ran(e, /^git status/) && 'waffles.md' in R(e, '~/recipes').index } ],
+    { t: 'Verify with git status', ok: e => did(e, /^git status/, '~/recipes') && 'waffles.md' in R(e, '~/recipes').index } ],
   hints: ['git add pancakes.md', 'You can list two files: git add pancakes.md waffles.md', 'If you staged the list by mistake: git restore --staged shopping-list.txt'],
   solution: ['git status', 'git add pancakes.md waffles.md', 'git status'] });
 
@@ -242,9 +250,9 @@ add({ id: 'log', ch: 1, title: 'Time Travel Log', xp: 100,
     commit(e, r, 'Add milk to pancakes', { 'pancakes.md': '# Pancakes\n- 2 eggs\n- 1 cup flour\n- 1 cup milk\n' }, null, A.linus);
     commit(e, r, 'Add waffles', { 'waffles.md': '# Waffles\n- 2 eggs\n' }, null, A.grace); },
   goals: [
-    { t: 'See the full history: git log', ok: e => ran(e, /^git log\s*$/) },
-    { t: 'See the short version: git log --oneline', ok: e => ran(e, /^git log.*--oneline/) },
-    { t: 'Open a commit with git show', ok: e => ran(e, /^git show\b/) } ],
+    { t: 'See the full history: git log', ok: e => did(e, /^git log\s*$/, '~/recipes') },
+    { t: 'See the short version: git log --oneline', ok: e => did(e, /^git log.*--oneline/, '~/recipes') },
+    { t: 'Open a commit with git show', ok: e => did(e, /^git show\b/, '~/recipes') } ],
   hints: ['git log', 'git log --oneline', 'git show (or git show <id> with an ID from the log)'],
   solution: ['git log', 'git log --oneline', 'git show'] });
 
@@ -260,9 +268,9 @@ add({ id: 'history', ch: 1, title: 'History Detective', xp: 200,
     commit(e, r, 'Improve pancake flavour', { 'pancakes.md': '# Pancakes\n- 2 eggs\n- 1 cup flour\n- 1 cup milk\n- 1 cup of salt\n' }, null, A.max);
     commit(e, r, 'Add waffles', { 'waffles.md': '# Waffles\n- 2 eggs\n' }, null, A.grace); },
   goals: [
-    { t: 'Find the culprit with git blame (or git show)', ok: e => ran(e, /^git (blame|show)/) },
+    { t: 'Find the culprit with git blame (or git show)', ok: e => did(e, /^git (blame\s+.*pancakes|show)/, '~/recipes') },
     { t: 'Change “1 cup of salt” to “1 pinch of salt”', ok: e => /1 pinch of salt/.test(e.read('/home/you/recipes/pancakes.md') || '') },
-    { t: 'Preview your fix with git diff', ok: e => ran(e, /^git diff/) },
+    { t: 'Preview your fix with git diff', ok: e => did(e, /^git diff/, '~/recipes') },
     { t: 'Commit the fix', ok: e => /1 pinch of salt/.test(headT(e, R(e, '~/recipes'))['pancakes.md'] || '') } ],
   hints: ['git log --oneline shows 4 commits by different people.', 'git blame pancakes.md — the salt line belongs to…?', 'Open the editor: nano pancakes.md and edit the line, then save.', 'git commit -am "Fix salt amount"'],
   solution: ['git log --oneline', 'git blame pancakes.md', 'echo -e "# Pancakes\\n- 2 eggs\\n- 1 cup flour\\n- 1 cup milk\\n- 1 pinch of salt" > pancakes.md', 'git diff', 'git commit -am "Fix salt amount in pancakes"'] });
@@ -334,10 +342,10 @@ add({ id: 'merge3', ch: 2, title: 'When Timelines Diverge', xp: 250,
   story: 'While you built the score board, a teammate fixed a bug on main. Combine both timelines.',
   setup(e) { base(e); const r = repo(e, '~/game'); e.cwd = r.root; commit(e, r, 'Create game', { 'game.txt': 'PLAYER: @\n' }); r.branches['feature/score'] = e.headId(r); commit(e, r, 'Fix jump bug', { 'game.txt': 'PLAYER: @ (jumps!)\n' }); sw(e, r, 'feature/score'); commit(e, r, 'Add score board', { 'score.txt': 'SCORE: 0\n' }); sw(e, r, 'main'); },
   goals: [
-    { t: 'Check which branch you are on (git branch or git status)', ok: e => ran(e, /^git (branch|status)\s*$/) },
+    { t: 'Check which branch you are on (git branch or git status)', ok: e => did(e, /^git (branch|status)\s*$/, '~/game') },
     { t: 'Merge feature/score → a merge commit with 2 parents', ok: e => { const r = R(e, '~/game'); const c = e.commits[r.branches.main]; return c.parents.length === 2; } },
     { t: 'main now has BOTH score.txt and the jump fix', ok: e => { const t = brT(e, R(e, '~/game'), 'main'); return 'score.txt' in t && /jumps/.test(t['game.txt']); } },
-    { t: 'Draw the graph: git log --oneline --graph', ok: e => ran(e, /^git log.*--graph/) } ],
+    { t: 'Draw the graph: git log --oneline --graph', ok: e => did(e, /^git log.*--graph/, '~/game') } ],
   hints: ['You are already on main — check with git branch.', 'git merge feature/score', 'git log --oneline --graph'],
   solution: ['git branch', 'git merge feature/score', 'git log --oneline --graph'] });
 
@@ -351,7 +359,7 @@ add({ id: 'conflict', ch: 2, title: 'Merge Conflict Boss', xp: 300,
   story: 'Two designers renamed the game at the same time. Merge feature/title into main and settle it: the title must be “Super Git Quest”.',
   setup(e) { base(e); const r = repo(e, '~/game'); e.cwd = r.root; commit(e, r, 'Create game', { 'title.txt': 'Quest\n', 'game.txt': 'PLAYER: @\n' }); r.branches['feature/title'] = e.headId(r); commit(e, r, 'Rename to Git Quest', { 'title.txt': 'Git Quest\n' }); sw(e, r, 'feature/title'); commit(e, r, 'Rename to Super Quest', { 'title.txt': 'Super Quest\n' }); sw(e, r, 'main'); },
   goals: [
-    { t: 'Start the merge and hit the conflict', ok: e => ran(e, /^git merge feature\/title/) },
+    { t: 'Start the merge and hit the conflict', ok: e => did(e, /^git merge feature\/title/, '~/game', { evenIfFailed: true }) },
     { t: 'title.txt says “Super Git Quest” with no markers', ok: e => { const c = e.read('/home/you/game/title.txt') || ''; return /^Super Git Quest\s*$/.test(c); } },
     { t: 'Finish the merge with a merge commit', ok: e => { const r = R(e, '~/game'); const c = e.commits[r.branches.main]; return !r.merging && c.parents.length === 2 && /^Super Git Quest\s*$/.test(c.tree['title.txt']); } } ],
   hints: ['git merge feature/title  → CONFLICT', 'cat title.txt to see the markers, then nano title.txt (or echo "Super Git Quest" > title.txt)', 'git add title.txt then git commit -m "Merge feature/title"'],
@@ -377,7 +385,7 @@ add({ id: 'stash', ch: 2, title: 'Stash & Dash', xp: 250,
   story: 'You’re mid-way through the new menu when the game crashes for everyone! Hotfix bug.txt on main (make it say “fixed”), then return to your menu work exactly as it was.',
   setup(e) { base(e); const r = repo(e, '~/game'); e.cwd = r.root; commit(e, r, 'Create game', { 'bug.txt': 'status: broken\n', 'menu.txt': 'START\n' }); r.branches['feature/menu'] = e.headId(r); sw(e, r, 'feature/menu'); commit(e, r, 'Start menu', { 'menu.txt': 'START\nOPTIONS\n' }); e.write(r.root + '/menu.txt', 'START\nOPTIONS\nHIGH SCORES (WIP)\n'); },
   goals: [
-    { t: 'Stash your work-in-progress', ok: e => ran(e, /^git stash( push| save|$| -)/) },
+    { t: 'Stash your work-in-progress', ok: e => did(e, /^git stash( push| save|$| -)/, '~/game') },
     { t: 'On main, commit bug.txt saying “fixed”', ok: e => { const t = brT(e, R(e, '~/game'), 'main'); return t && /fixed/.test(t['bug.txt'] || ''); } },
     { t: 'Back on feature/menu with the WIP restored', ok: e => { const r = R(e, '~/game'); return r.head.branch === 'feature/menu' && /HIGH SCORES \(WIP\)/.test(e.read('/home/you/game/menu.txt') || '') && /fixed/.test((brT(e, r, 'main') || {})['bug.txt'] || ''); } },
     { t: 'The stash pocket is empty', ok: e => { const r = R(e, '~/game'); return !r.stash.length && /fixed/.test((brT(e, r, 'main') || {})['bug.txt'] || '') && r.head.branch === 'feature/menu'; } } ],
@@ -414,7 +422,7 @@ add({ id: 'reset', ch: 2, title: 'Reset & the Reflog Safety Net', xp: 300,
   goals: [
     { t: 'main points at “Add boss fight” again', ok: e => R(e, '~/game').branches.main === e.lv.good },
     { t: 'Working folder is clean (no tmp files)', ok: e => R(e, '~/game').branches.main === e.lv.good && !e.isFile('/home/you/game/tmp1.txt') && clean(e, R(e, '~/game')) },
-    { t: 'Look at the reflog', ok: e => ran(e, /^git reflog/) },
+    { t: 'Look at the reflog', ok: e => did(e, /^git reflog/, '~/game') },
     { t: 'Branch rescue points at the commit with idea.txt', ok: e => { const r = R(e, '~/game'); return r.branches.rescue && 'idea.txt' in e.tree(r.branches.rescue); } } ],
   hints: ['git reset --hard HEAD~2', 'git reflog — find “commit: WIP junk 2”', 'git branch rescue HEAD@{1}  (or use the commit ID)'],
   solution: ['git log --oneline', 'git reset --hard HEAD~2', 'git reflog', 'git branch rescue HEAD@{1}', 'git log --oneline rescue'] });
@@ -426,7 +434,7 @@ add({ id: 'cherry', ch: 2, title: 'Cherry Picking', xp: 250,
   story: 'The experimental branch is chaos, but it contains “Fix typo in README”. Bring ONLY that fix to main.',
   setup(e) { base(e); const r = repo(e, '~/game'); e.cwd = r.root; commit(e, r, 'Create game', { 'README.md': '# Git Qeust\nA game about git.\n' }); r.branches.experimental = e.headId(r); sw(e, r, 'experimental'); commit(e, r, 'Try 3D graphics (broken)', { 'crazy3d.txt': '???\n' }); commit(e, r, 'Fix typo in README', { 'README.md': '# Git Quest\nA game about git.\n' }); commit(e, r, 'Replace player with banana', { 'game.txt': 'PLAYER: 🍌\n' }); sw(e, r, 'main'); },
   goals: [
-    { t: 'Find the fix with git log --oneline experimental', ok: e => ran(e, /^git log.*experimental/) },
+    { t: 'Find the fix with git log --oneline experimental', ok: e => did(e, /^git log.*experimental/, '~/game') },
     { t: 'main’s README says “Git Quest”', ok: e => /Git Quest/.test((brT(e, R(e, '~/game'), 'main') || {})['README.md'] || '') },
     { t: 'main has NO experimental junk', ok: e => { const t = brT(e, R(e, '~/game'), 'main'); return /Git Quest/.test(t['README.md']) && !('crazy3d.txt' in t) && !('game.txt' in t); } } ],
   hints: ['git log --oneline experimental', 'The fix is one before the tip: experimental~1', 'git cherry-pick experimental~1 (or its ID)'],
@@ -457,8 +465,8 @@ add({ id: 'clone', ch: 3, title: 'Clone a Repo', xp: 200,
   setup(e) { base(e); gh(e, 'octo-academy/hello-world', [['Initial commit', { 'README.md': '# Hello World\nWelcome to Octo Academy!\n' }], ['Add greeting script', { 'hello.sh': 'echo "Hello, world!"\n' }], ['Add contributors', { 'CONTRIBUTORS.md': '- Octocat\n' }]], { desc: 'Your first repository' }); ghBranch(e, 'octo-academy/hello-world', 'docs', 'main', [['Write docs', { 'docs/guide.md': '# Guide\nRun hello.sh\n' }]]); },
   goals: [
     { t: 'Clone https://github.com/octo-academy/hello-world.git', ok: e => !!R(e, '~/hello-world') },
-    { t: 'Enter it and check git remote -v', ok: e => ran(e, /^git remote -v/) && !!R(e, '~/hello-world') },
-    { t: 'List all branches with git branch -a', ok: e => ran(e, /^git branch -a/) },
+    { t: 'Enter it and check git remote -v', ok: e => did(e, /^git remote -v/, '~/hello-world') },
+    { t: 'List all branches with git branch -a', ok: e => did(e, /^git branch -a/, '~/hello-world') },
     { t: 'Switch to the docs branch', ok: e => { const r = R(e, '~/hello-world'); return r && r.head.branch === 'docs' && r.upstream.docs === 'origin/docs'; } } ],
   hints: ['git clone https://github.com/octo-academy/hello-world.git', 'cd hello-world && git remote -v', 'git branch -a then git switch docs'],
   solution: ['git clone https://github.com/octo-academy/hello-world.git', 'cd hello-world', 'git remote -v', 'git branch -a', 'git switch docs', 'ls docs'] });
@@ -473,12 +481,28 @@ add({ id: 'sync', ch: 3, title: 'Team Sync: Fetch, Pull, Push', xp: 350,
   story: 'You added dark mode while Sam pushed a footer to the shared team-app. Get your commit onto GitHub without losing Sam’s.',
   setup(e) { base(e, { auth: true }); gh(e, 'you/team-app', [['Create team app', { 'index.html': '<h1>Team App</h1>\n' }, null, A.you]]); clone(e, 'you/team-app', '~/team-app'); e.ghCommit('you/team-app', 'main', 'Add footer', { 'footer.html': '<footer>© Team</footer>\n' }, null, A.sam); const r = R(e, '~/team-app'); e.cwd = r.root; commit(e, r, 'Add dark mode', { 'dark.css': 'body { background: #111; }\n' }); },
   goals: [
-    { t: 'Try to push (it gets rejected!)', ok: e => ran(e, /^git push/) },
-    { t: 'Fetch and inspect with git status', ok: e => ran(e, /^git (fetch|pull)/) },
+    { t: 'Try to push (it gets rejected!)', ok: e => did(e, /^git push/, '~/team-app', { evenIfFailed: true }) },
+    { t: 'Fetch and inspect with git status', ok: e => did(e, /^git (fetch|pull)/, '~/team-app') && did(e, /^git status/, '~/team-app') },
     { t: 'Integrate Sam’s footer into your main', ok: e => 'footer.html' in headT(e, R(e, '~/team-app')) },
     { t: 'GitHub has both dark mode and the footer', ok: e => { const t = ghT(e, 'you/team-app'); return t && 'footer.html' in t && 'dark.css' in t; } } ],
   hints: ['git push → rejected: “fetch first”', 'git fetch then git status → diverged', 'git pull --rebase (or git pull --no-rebase)', 'git push'],
   solution: ['git push', 'git fetch', 'git status', 'git pull --rebase', 'git push', 'git log --oneline'] });
+
+add({ id: 'teambranch', ch: 3, title: 'Try a Teammate’s Branch', xp: 350,
+  lesson: [{ h: 'Branches from other people', p: 'Teammates push their own branches to GitHub. <b>git fetch</b> downloads them as <b>origin/&lt;name&gt;</b>. Switch to one to try it, and <b>git pull</b> again whenever they push more.',
+    viz: row(zone('☁ GitHub', 'z3', flag('main', 'green'), flag('feature/search', 'purple')), arr('git fetch'), zone('💻 You', 'z1', flag('origin/feature/search', 'gray')), arr('git switch'), flag('★ feature/search', 'purple')),
+    cmds: [['git fetch', 'download new branches and commits'], ['git branch -a', 'list local + remote branches'], ['git switch <their-branch>', 'make a local copy that tracks theirs'], ['git pull', 'get the newest commits on that branch'], ['git merge <branch>', 'from main: bring it in when it’s ready']] }],
+  story: 'Sam built a search feature on a branch. Download it, try it out, grab Sam’s follow-up fix, then merge it into main and push.',
+  setup(e) { base(e, { auth: true }); gh(e, 'you/team-app', [['Create team app', { 'index.html': '<h1>Team App</h1>\n' }, null, A.you]]); const r = clone(e, 'you/team-app', '~/team-app'); e.cwd = r.root;
+    ghBranch(e, 'you/team-app', 'feature/search', 'main', [['Add search box', { 'search.js': 'serch(query)\n' }, null, A.sam]]);
+    e.hooks = [w => { const rr = R(w, '~/team-app'); if (!w.lv.samFix && rr && rr.branches['feature/search'] !== undefined) { w.lv.samFix = true; w.ghCommit('you/team-app', 'feature/search', 'Fix typo in search', { 'search.js': 'search(query)\n' }, null, A.sam); w.p('📨 Sam: "oops, I just pushed a typo fix to feature/search — please pull it!"', 'mag'); } }]; },
+  goals: [
+    { t: 'In ~/team-app, fetch to discover Sam’s branch', ok: e => did(e, /^git (fetch|pull)/, '~/team-app') && !!R(e, '~/team-app').rrefs['origin/feature/search'] },
+    { t: 'Switch to feature/search and read search.js', ok: e => R(e, '~/team-app').branches['feature/search'] !== undefined && didRead(e, H + '/team-app/search.js') },
+    { t: 'Pull Sam’s follow-up fix into your copy', ok: e => { const r = R(e, '~/team-app'); return !!e.lv.samFix && r.branches['feature/search'] === e.gh['you/team-app'].branches['feature/search']; } },
+    { t: 'Merge it into main and push', ok: e => /search\(query\)/.test((ghT(e, 'you/team-app') || {})['search.js'] || '') } ],
+  hints: ['git fetch, then git branch -a', 'git switch feature/search, then cat search.js', 'Sam pushed again → git pull', 'git switch main → git merge feature/search → git push'],
+  solution: ['git fetch', 'git branch -a', 'git switch feature/search', 'cat search.js', 'git pull', 'cat search.js', 'git switch main', 'git merge feature/search', 'git push'] });
 
 add({ id: 'ssh', ch: 3, title: 'SSH Keys', xp: 300,
   lesson: [{ h: 'A key pair instead of passwords', p: 'An <b>SSH key</b> is a pair: a <b>private key</b> 🔑 that never leaves your laptop, and a <b>public key</b> 🔓 you give to GitHub. GitHub can then recognise your laptop automatically.',
@@ -489,7 +513,7 @@ add({ id: 'ssh', ch: 3, title: 'SSH Keys', xp: 300,
   goals: [
     { t: 'Generate an ed25519 key pair', ok: e => e.isFile('/home/you/.ssh/id_ed25519.pub') },
     { t: 'Add the PUBLIC key to GitHub', ok: e => e.ssh.added },
-    { t: 'Test with ssh -T git@github.com', ok: e => ran(e, /^ssh -T git@github\.com/) && e.ssh.added },
+    { t: 'Test with ssh -T git@github.com', ok: e => did(e, /^ssh -T git@github\.com/) && e.ssh.added },
     { t: 'Switch origin to the SSH URL', ok: e => /^git@github\.com:you\/portfolio(\.git)?$/.test(R(e, '~/portfolio').remotes.origin || '') },
     { t: 'Push over SSH', ok: e => { const t = ghT(e, 'you/portfolio'); return t && 'contact.html' in t && /^git@/.test(R(e, '~/portfolio').remotes.origin); } } ],
   hints: ['ssh-keygen -t ed25519 -C "you@example.com"', 'gh ssh-key add ~/.ssh/id_ed25519.pub --title laptop', 'git remote set-url origin git@github.com:you/portfolio.git', 'git push'],
@@ -528,6 +552,29 @@ add({ id: 'fork', ch: 3, title: 'Fork & Contribute', xp: 400,
   hints: ['gh repo fork octo-academy/awesome-git-tips --clone', 'cd awesome-git-tips && git switch -c add-my-tip', 'echo "- Commit early, commit often" >> TIPS.md && git commit -am "Add my tip"', 'git push -u origin add-my-tip', 'gh pr create --title "Add my tip" --body "…"'],
   solution: ['gh repo fork octo-academy/awesome-git-tips --clone', 'cd awesome-git-tips', 'git remote -v', 'git switch -c add-my-tip', 'echo "- Commit early, commit often" >> TIPS.md', 'git commit -am "Add tip: commit early, commit often"', 'git push -u origin add-my-tip', 'gh pr create --title "Add tip: commit early, commit often" --body "My favourite tip!"'] });
 
+add({ id: 'upstream', ch: 3, title: 'Keep Your Fork Fresh', xp: 400,
+  lesson: [
+    { h: 'Your fork doesn’t update itself', p: 'After you fork, the original project keeps moving, but your fork stays frozen. To catch up, connect the original as a second remote called <b>upstream</b>.',
+      viz: row(zone('☁ octo-academy (upstream)', 'z3', cm('A', 'purple'), cm('B', 'purple'), cm('C', 'purple')), zone('☁ you (origin, fork)', 'z3', cm('A', 'blue')), zone('💻 laptop', 'z1', cm('A', 'blue'))),
+      cmds: [['git remote add upstream <original-url>', 'connect the original project (one time)'], ['git remote -v', 'now you see origin AND upstream']] },
+    { h: 'The catch-up routine', p: 'Download from upstream, merge it into your main, then push to your fork. Now all three copies match.',
+      viz: row(blk('git fetch upstream', 'purple'), arr(), blk('git merge upstream/main', 'green'), arr(), blk('git push', 'blue')),
+      cmds: [['git fetch upstream', 'download the original’s new commits'], ['git merge upstream/main', 'bring them into your main'], ['git pull upstream main', 'shortcut: fetch + merge in one'], ['git push', 'update your fork on GitHub'], ['gh repo sync you/<repo>', 'GitHub-only shortcut (no laptop needed)']] }],
+  story: 'Since you forked awesome-git-tips, the maintainers added new tips. Bring your laptop copy AND your fork up to date with the original.',
+  setup(e) { base(e, { auth: true }); const P = 'octo-academy/awesome-git-tips';
+    gh(e, P, [['Start the list', { 'TIPS.md': '# Awesome Git Tips\n- Run git status often\n' }], ['Add contributing guide', { 'CONTRIBUTING.md': 'Fork, branch, PR!\n' }]], { stars: 1337, desc: 'Community tips' });
+    const f = e.ghCreate('you/awesome-git-tips', { forkOf: P }); f.branches = JSON.parse(JSON.stringify(e.gh[P].branches));
+    clone(e, 'you/awesome-git-tips', '~/awesome-git-tips'); e.cwd = H + '/awesome-git-tips';
+    e.ghCommit(P, 'main', 'Add tip about branches', { 'TIPS.md': '# Awesome Git Tips\n- Run git status often\n- Make a branch for every idea\n' }, null, A.grace);
+    e.lv.upTip = e.ghCommit(P, 'main', 'Add tip about pulling', { 'TIPS.md': '# Awesome Git Tips\n- Run git status often\n- Make a branch for every idea\n- Pull before you push\n' }, null, A.linus); },
+  goals: [
+    { t: 'Add the original repo as a remote named upstream', ok: e => /octo-academy\/awesome-git-tips/.test(R(e, '~/awesome-git-tips').remotes.upstream || '') },
+    { t: 'Fetch from upstream', ok: e => did(e, /^git (fetch|pull) (upstream|--all)/, '~/awesome-git-tips') },
+    { t: 'Your laptop main has the new tips', ok: e => e.isAnc(e.lv.upTip, R(e, '~/awesome-git-tips').branches.main) },
+    { t: 'Your fork on GitHub has them too (push)', ok: e => e.isAnc(e.lv.upTip, G(e, 'you/awesome-git-tips').branches.main) } ],
+  hints: ['git remote add upstream https://github.com/octo-academy/awesome-git-tips.git', 'git fetch upstream', 'git merge upstream/main', 'git push'],
+  solution: ['git remote -v', 'git remote add upstream https://github.com/octo-academy/awesome-git-tips.git', 'git remote -v', 'git fetch upstream', 'git merge upstream/main', 'git push', 'cat TIPS.md'] });
+
 add({ id: 'mirror', ch: 3, title: 'Mirror & Migrate', xp: 450,
   lesson: [
     { h: 'Copy EVERYTHING to a new repo', p: 'A normal clone only gives you the default branch locally. A <b>bare mirror</b> holds every branch and tag, and <b>push --mirror</b> sends all of them to a new home. Great for renaming or moving a project.',
@@ -540,7 +587,7 @@ add({ id: 'mirror', ch: 3, title: 'Mirror & Migrate', xp: 450,
   setup(e) { base(e, { auth: true }); const k = 'you/old-project'; gh(e, k, [['Initial commit', { 'README.md': '# Project\n' }, null, A.you], ['Add core', { 'core.js': 'run()\n' }, null, A.you]]); e.gh[k].tags['v1.0.0'] = { id: e.gh[k].branches.main, annot: true, msg: 'v1.0.0', tagger: A.you }; e.ghCommit(k, 'main', 'Add plugins', { 'plugins.js': 'load()\n' }, null, A.you); e.gh[k].tags['v1.1.0'] = { id: e.gh[k].branches.main, annot: true, msg: 'v1.1.0', tagger: A.you }; ghBranch(e, k, 'dev', 'main', [['Experimental turbo mode', { 'turbo.js': 'go fast\n' }, null, A.you]]); const r = clone(e, k, '~/old-project'); e.lv.snap = JSON.stringify({ b: e.gh[k].branches, t: Object.keys(e.gh[k].tags).sort() }); },
   goals: [
     { t: 'Make a bare mirror clone', ok: e => Object.values(e.repos).some(r => r.bare) },
-    { t: 'Create you/new-project on GitHub', ok: e => !!G(e, 'you/new-project') || ran(e, /gh repo create (you\/)?new-project/) },
+    { t: 'Create you/new-project on GitHub', ok: e => !!G(e, 'you/new-project') },
     { t: 'new-project has ALL branches and tags', ok: e => { const g = e.gh['you/new-project']; if (!g) return false; const s = JSON.parse(e.lv.snap); return JSON.stringify(g.branches) === JSON.stringify(s.b) && JSON.stringify(Object.keys(g.tags).sort()) === JSON.stringify(s.t); } },
     { t: 'Delete you/old-project', ok: e => e.gh['you/old-project'].deleted },
     { t: 'Point ~/old-project’s origin at new-project', ok: e => /you\/new-project/.test(R(e, '~/old-project').remotes.origin || '') } ],
@@ -615,7 +662,7 @@ add({ id: 'ci', ch: 5, title: 'GitHub Actions: CI Robot', xp: 500,
   goals: [
     { t: 'Copy the template to .github/workflows/ci.yml', ok: e => e.isFile('/home/you/calc-app/.github/workflows/ci.yml') },
     { t: 'Commit & push it — a run starts', ok: e => G(e, 'you/calc-app').runs.length > 0 },
-    { t: 'Watch a run finish (gh run watch / list)', ok: e => ran(e, /^gh run (watch|view|list)/) && G(e, 'you/calc-app').runs.some(r => r.status === 'completed') },
+    { t: 'Watch a run finish (gh run watch / list)', ok: e => did(e, /^gh run (watch|view|list)/, '~/calc-app') && G(e, 'you/calc-app').runs.some(r => r.status === 'completed') },
     { t: 'Fix src/calc.js so the latest run is ✓ green', ok: e => { const r = G(e, 'you/calc-app').runs[0]; return r && r.status === 'completed' && r.conclusion === 'success'; } } ],
   hints: ['mkdir -p .github/workflows && cp ~/templates/ci.yml .github/workflows/ci.yml', 'git add . && git commit -m "Add CI workflow" && git push', 'gh run watch — read the ✗ log', 'nano src/calc.js: change a - b to a + b, then commit, push, gh run watch'],
   solution: ['cat ~/templates/ci.yml', 'mkdir -p .github/workflows', 'cp ~/templates/ci.yml .github/workflows/ci.yml', 'git add .', 'git commit -m "Add CI workflow"', 'git push', 'gh run watch', 'echo -e "function add(a, b) {\\n  return a + b;\\n}\\nmodule.exports = { add };" > src/calc.js', 'git commit -am "Fix add() to actually add"', 'git push', 'gh run watch', 'gh run list'] });
@@ -634,7 +681,7 @@ add({ id: 'pages', ch: 5, title: 'FINAL BOSS: Launch on GitHub Pages', xp: 1000,
     { t: 'Pages workflow committed on GitHub main', ok: e => { const t = ghT(e, 'you/my-site'); return t && Object.keys(t).some(p => /^\.github\/workflows\/.+\.ya?ml$/.test(p) && /deploy-pages/.test(t[p])); } },
     { t: 'Enable Pages with source = GitHub Actions', ok: e => { const g = G(e, 'you/my-site'); return g && g.pages.enabled && g.pages.type === 'workflow'; } },
     { t: 'A deployment run succeeds 🚀', ok: e => { const g = G(e, 'you/my-site'); return g && !!g.pages.site; } },
-    { t: 'Open your live site', ok: e => { const g = G(e, 'you/my-site'); return g && !!g.pages.site && ran(e, /^(open|xdg-open)\s+https:\/\/you\.github\.io\/my-site/) || !!(e.lv && e.lv.opened); } } ],
+    { t: 'Open your live site', ok: e => { const g = G(e, 'you/my-site'); return !!(g && g.pages.site && (did(e, /^(open|xdg-open)\s+https:\/\/you\.github\.io\/my-site/) || (e.lv && e.lv.opened))); } } ],
   hints: ['gh repo create my-site --public --source=. --push', 'mkdir -p .github/workflows && cp ~/templates/pages.yml .github/workflows/', 'gh api -X POST repos/you/my-site/pages -f build_type=workflow', 'git add . && git commit -m "Add Pages workflow" && git push, then gh run watch', 'open https://you.github.io/my-site/'],
   solution: ['gh repo create my-site --public --source=. --push', 'mkdir -p .github/workflows', 'cp ~/templates/pages.yml .github/workflows/', 'git add .', 'git commit -m "Deploy with GitHub Pages"', 'gh api -X POST repos/you/my-site/pages -f build_type=workflow', 'git push', 'gh run watch', 'open https://you.github.io/my-site/'] });
 
@@ -643,7 +690,7 @@ add({ id: 'pages', ch: 5, title: 'FINAL BOSS: Launch on GitHub Pages', xp: 1000,
 const H = '/home/you';
 const drill = l => { l.drill = true; add(l); };
 function addsOnly(e, id, file) { const c = e.commits[id]; if (!c || c.parents.length !== 1) return false; const p = e.tree(c.parents[0]), t = c.tree; const added = Object.keys(t).filter(k => !(k in p)); return added.length === 1 && added[0] === file && Object.keys(p).every(k => t[k] === p[k]); }
-function branchNames(e) { const s = new Set(); e.history.forEach(h => { const m = h.match(/git (?:switch -c|checkout -b|branch) ([A-Za-z0-9][\w\/.-]*)/); if (m) s.add(m[1]); }); return s; }
+function branchNames(e, where) { const root = e.norm(where), s = new Set(); (e.cmdlog || []).forEach(x => { if (!x.ok || x.repo !== root) return; const m = x.cmd.match(/git (?:switch -c|checkout -b|branch) ([A-Za-z0-9][\w\/.-]*)/); if (m) s.add(m[1]); }); return s; }
 const countRan = (e, re) => e.history.filter(h => re.test(h)).length;
 const anyCommitHas = (e, r, file) => r && Object.values(r.branches).some(id => [...e.ancestors(id)].some(x => file in e.commits[x].tree));
 
@@ -655,7 +702,7 @@ drill({ id: 'maze', ch: 0, title: 'Folder Maze', xp: 150,
   story: 'The school folder is a maze. Find the hidden treasure, then leave homework and notes in the right rooms — and make it back home.',
   setup(e) { base(e); e.write(H + '/school/README.txt', 'The treasure is hidden in science → lab → secret.\n'); e.write(H + '/school/science/lab/secret/treasure.txt', '🏆 You found it! The secret word is: COMMIT\n'); e.mkdirp(H + '/school/math'); e.write(H + '/school/art/drawing.txt', '(a very nice cat)\n'); e.write(H + '/school/science/lab/beaker.txt', 'H2O\n'); },
   goals: [
-    { t: 'Read treasure.txt hidden deep in school/science', ok: e => ran(e, /^cat\b.*treasure/) },
+    { t: 'Read treasure.txt hidden deep in school/science', ok: e => didRead(e, H + '/school/science/lab/secret/treasure.txt') },
     { t: 'Create a history folder inside school', ok: e => e.isDir(H + '/school/history') },
     { t: 'Write notes.txt inside school/history', ok: e => (e.read(H + '/school/history/notes.txt') || '').trim().length > 0 },
     { t: 'Write homework.txt inside school/math', ok: e => (e.read(H + '/school/math/homework.txt') || '').trim().length > 0 },
@@ -719,7 +766,7 @@ drill({ id: 'juggler', ch: 2, title: 'Branch Juggler', xp: 250,
     { t: 'main has drums.txt', ok: e => 'drums.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
     { t: 'main has guitar.txt', ok: e => 'guitar.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
     { t: 'main has vocals.txt', ok: e => 'vocals.txt' in (brT(e, R(e, '~/band'), 'main') || {}) },
-    { t: 'Each part made on its own branch (3 branches, 3 merges)', ok: e => branchNames(e).size >= 3 && countRan(e, /^git merge /) >= 3 },
+    { t: 'Each part made on its own branch (3 branches, 3 merges)', ok: e => branchNames(e, '~/band').size >= 3 && didCount(e, /^git merge /, '~/band') >= 3 },
     { t: 'Clean up: only main is left', ok: e => { const r = R(e, '~/band'); const t = brT(e, r, 'main') || {}; return Object.keys(r.branches).join() === 'main' && ['drums.txt', 'guitar.txt', 'vocals.txt'].every(f => f in t); } } ],
   hints: ['git switch -c drums → echo "boom" > drums.txt → add → commit', 'git switch main → git merge drums → git branch -d drums', 'Repeat for guitar and vocals'],
   solution: [['drums', 'boom tss'], ['guitar', 'twang'], ['vocals', 'la la la']].flatMap(([b, s]) => ['git switch -c ' + b, 'echo "' + s + '" > ' + b + '.txt', 'git add ' + b + '.txt', 'git commit -m "Record ' + b + '"', 'git switch main', 'git merge ' + b, 'git branch -d ' + b]).concat(['git log --oneline']) });
@@ -731,9 +778,9 @@ drill({ id: 'twinrepos', ch: 2, title: 'Two Repos, Two Features', xp: 250,
   story: 'Ship dark mode in the web repo and a login endpoint in the api repo — each on a feature branch, each merged into its own main.',
   setup(e) { base(e); const w = repo(e, '~/web'); commit(e, w, 'Create website', { 'index.html': '<h1>App</h1>\n', 'style.css': 'body{}\n' }); const a = repo(e, '~/api'); commit(e, a, 'Create API', { 'server.js': 'listen(8080)\n' }); },
   goals: [
-    { t: '~/web: commit dark.css on branch feature/dark-mode', ok: e => ran(e, /feature\/dark-mode/) && anyCommitHas(e, R(e, '~/web'), 'dark.css') },
+    { t: '~/web: commit dark.css on branch feature/dark-mode', ok: e => did(e, /feature\/dark-mode/, '~/web') && anyCommitHas(e, R(e, '~/web'), 'dark.css') },
     { t: '~/web: merge it into main', ok: e => 'dark.css' in (brT(e, R(e, '~/web'), 'main') || {}) },
-    { t: '~/api: commit login.js on branch feature/login', ok: e => ran(e, /feature\/login/) && anyCommitHas(e, R(e, '~/api'), 'login.js') },
+    { t: '~/api: commit login.js on branch feature/login', ok: e => did(e, /feature\/login/, '~/api') && anyCommitHas(e, R(e, '~/api'), 'login.js') },
     { t: '~/api: merge it into main', ok: e => 'login.js' in (brT(e, R(e, '~/api'), 'main') || {}) } ],
   hints: ['cd web && git switch -c feature/dark-mode', 'echo "body{background:#000}" > dark.css, add, commit, git switch main, git merge feature/dark-mode', 'cd ../api and repeat with feature/login and login.js'],
   solution: ['cd web', 'git switch -c feature/dark-mode', 'echo "body { background: #000; }" > dark.css', 'git add dark.css', 'git commit -m "Add dark mode"', 'git switch main', 'git merge feature/dark-mode', 'cd ../api', 'git switch -c feature/login', 'echo "route(/login)" > login.js', 'git add login.js', 'git commit -m "Add login endpoint"', 'git switch main', 'git merge feature/login'] });
@@ -753,7 +800,7 @@ drill({ id: 'morning', ch: 3, title: 'Morning Sync', xp: 300,
     { t: '~/web: pull Sam’s navbar', ok: e => { const r = R(e, '~/web'); return r.branches.main === e.gh['you/web'].branches.main; } },
     { t: '~/docs: pull Grace’s FAQ', ok: e => { const r = R(e, '~/docs'); return r.branches.main === e.gh['you/docs'].branches.main; } },
     { t: '~/api: push your health check', ok: e => 'health.js' in (ghT(e, 'you/api') || {}) },
-    { t: 'Check status in each repo (git status ×3)', ok: e => countRan(e, /^git status/) >= 3 } ],
+    { t: 'Run git status inside all three repos', ok: e => didRepos(e, /^git status/).size >= 3 } ],
   hints: ['cd web → git fetch → git status → git pull', 'cd ../docs → same routine', 'cd ../api → git status says “ahead by 1” → git push'],
   solution: ['cd web', 'git fetch', 'git status', 'git pull', 'cd ../docs', 'git fetch', 'git status', 'git pull', 'cd ../api', 'git status', 'git push'] });
 
@@ -794,6 +841,26 @@ drill({ id: 'prrush', ch: 3, title: 'Pull Request Rush', xp: 350,
     { t: 'No leftover feature branches (local or GitHub)', ok: e => { const r = R(e, '~/team-app'); const g = G(e, 'you/team-app'); return Object.keys(r.branches).join() === 'main' && Object.keys(g.branches).join() === 'main' && g.prs.filter(p => p.state === 'MERGED').length >= 2; } } ],
   hints: ['git switch -c feature/about, create about.html, add, commit', 'git push -u origin feature/about → gh pr create … → gh pr merge --merge --delete-branch', 'Then the same for feature/contact'],
   solution: [['about', 'About us'], ['contact', 'Contact us']].flatMap(([n, t]) => ['git switch -c feature/' + n, 'echo "<h1>' + t + '</h1>" > ' + n + '.html', 'git add ' + n + '.html', 'git commit -m "Add ' + n + ' page"', 'git push -u origin feature/' + n, 'gh pr create --title "Add ' + n + ' page" --body "New ' + n + ' page"', 'gh pr merge --merge --delete-branch']).concat(['git log --oneline']) });
+
+drill({ id: 'forkkeeper', ch: 3, title: 'Fork Keeper', xp: 350,
+  lesson: [{ h: 'Practice: refresh two forks', p: 'The catch-up routine, twice: <b>fetch upstream → merge upstream/main → push</b>. In one fork you also have your own new commit, so the merge combines both.',
+    viz: row(blk('git fetch upstream', 'purple'), arr(), blk('git merge upstream/main', 'green'), arr(), blk('git push', 'blue')),
+    cmds: [['cd ../<repo>', 'hop to the next fork'], ['git fetch upstream', 'download'], ['git merge upstream/main', 'combine'], ['git push', 'update your fork']] }],
+  story: 'You maintain forks of cheatsheets and examples. Both originals moved ahead, and in examples you also have an unpushed commit of your own. Catch everything up.',
+  setup(e) { base(e, { auth: true });
+    for (const [n, f] of [['cheatsheets', 'git.md'], ['examples', 'hello.sh']]) {
+      const P = 'octo-academy/' + n; gh(e, P, [['Create ' + n, { [f]: 'v1\n' }]]);
+      const k = e.ghCreate('you/' + n, { forkOf: P }); k.branches = JSON.parse(JSON.stringify(e.gh[P].branches));
+      const r = clone(e, 'you/' + n, '~/' + n); r.remotes.upstream = 'https://github.com/' + P + '.git'; r.rrefs['upstream/main'] = e.gh[P].branches.main;
+      e.lv[n] = e.ghCommit(P, 'main', 'Add more to ' + n, { ['more-' + f]: 'new stuff\n' }, null, A.ada); }
+    commit(e, R(e, '~/examples'), 'Add my own example', { 'mine.sh': 'echo mine\n' }); },
+  goals: [
+    { t: '~/cheatsheets has upstream’s new commit', ok: e => e.isAnc(e.lv.cheatsheets, R(e, '~/cheatsheets').branches.main) },
+    { t: 'you/cheatsheets fork updated on GitHub', ok: e => e.isAnc(e.lv.cheatsheets, G(e, 'you/cheatsheets').branches.main) },
+    { t: '~/examples has upstream’s commit AND yours', ok: e => { const r = R(e, '~/examples'); return e.isAnc(e.lv.examples, r.branches.main) && 'mine.sh' in e.tree(r.branches.main); } },
+    { t: 'you/examples fork updated with both', ok: e => { const g = G(e, 'you/examples'); return e.isAnc(e.lv.examples, g.branches.main) && 'mine.sh' in e.tree(g.branches.main); } } ],
+  hints: ['cd cheatsheets → git fetch upstream → git merge upstream/main → git push', 'cd ../examples and repeat — the merge creates a merge commit because you have your own commit too'],
+  solution: ['cd cheatsheets', 'git remote -v', 'git fetch upstream', 'git merge upstream/main', 'git push', 'cd ../examples', 'git fetch upstream', 'git status', 'git merge upstream/main', 'git push', 'git log --oneline --graph'] });
 
 // ---- World 5 ----
 drill({ id: 'tagteam', ch: 4, title: 'Tag Team', xp: 300,
@@ -990,6 +1057,9 @@ const LEARN = {
   "GitHub Actions are robots that run every time you upload.",
   "You'll add a robot that tests your code automatically, watch it catch a bug, then fix it until it turns green."
  ],
+ "teambranch": ["Teammates often work on their own branches and upload them to GitHub.", "You'll download a teammate's branch, try it, get their newest fix, and merge it in."],
+ "upstream": ["When you fork a project, your copy doesn't update itself as the original changes.", "You'll connect the original project and pull its new work into your laptop AND your fork."],
+ "forkkeeper": ["Practice round: keep two forks up to date with their originals.", "Same routine twice: fetch upstream, merge, push."],
  "pages": [
   "The final boss: turn your project into a real website with its own address.",
   "A GitHub robot will build and publish it every time you upload. Everything you've learned comes together here!"

@@ -463,6 +463,7 @@ Engine.prototype = {
       ok = this.runSeg(segs[k]);
     }
     this.settle();
+    for (const h of this.hooks || []) { try { h(this); } catch (e) {} }
     return { lines: this.out, actions: this.actions, ok };
   },
   runSeg(seg) {
@@ -475,8 +476,10 @@ Engine.prototype = {
       else words.push(t.w);
     }
     const saved = this.out; if (redir) this.out = [];
+    const at = this.cwd, atRepo = (this.findRepo() || {}).root || null;
     let ok;
     try { ok = this.exec(words); } catch (e) { if (e instanceof Fatal) ok = false; else { this.err('internal simulator error: ' + e.message); if (typeof console !== 'undefined') console.error(e); ok = false; } }
+    (this.cmdlog = this.cmdlog || []).push({ cmd: words.join(' '), cwd: at, repo: atRepo, ok: ok !== false });
     if (redir) {
       const good = this.out.filter(l => l.c !== 'err'), bad = this.out.filter(l => l.c === 'err');
       this.out = saved.concat(bad);
@@ -504,8 +507,8 @@ Engine.prototype = {
   // independent copy of the world (used to look ahead for hints); runs never wait in real time
   snapshot() {
     const e = new Engine();
-    for (const k of ['fs', 'repos', 'commits', 'gh', 'cwd', 'prevCwd', 'config', 'auth', 'ssh', 'clock', 'runSeq', 'history', 'lv', 'visited', 'readFiles']) if (this[k] !== undefined) e[k] = JSON.parse(JSON.stringify(this[k]));
-    e.testRules = this.testRules; e.realtime = false; e.events = [];
+    for (const k of ['fs', 'repos', 'commits', 'gh', 'cwd', 'prevCwd', 'config', 'auth', 'ssh', 'clock', 'runSeq', 'history', 'lv', 'visited', 'readFiles', 'cmdlog']) if (this[k] !== undefined) e[k] = JSON.parse(JSON.stringify(this[k]));
+    e.testRules = this.testRules; e.hooks = this.hooks; e.realtime = false; e.events = [];
     return e;
   },
 };
